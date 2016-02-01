@@ -26,35 +26,15 @@
 
 unsigned char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-void addStringToKeys(char const * str, unsigned int index, unsigned int * keys)
-{
-    int i;
-    for (i = 0; i < 4; i++) {
-        keys[index * N + i] = 0x0000;
-    }
-    
-    for (i = 0; i < strlen(str); i++) {
-        PUTCHAR(&keys[index * N], i, str[i]);
-    }
-    
-//    unsigned char * keysUChar = (unsigned char *)keys;
-//    
-//    for (int i = 0; i < strlen(str); i++) {
-//        keysUChar[index * N + i] = (unsigned char)str[i];
-//    }
-//memset(&keys[index], *str, strlen(str));
-}
-
 void printHash(unsigned int i, unsigned int * hash)
 {
     printf("%d = ", i);
     
     for (int i = 0; i < 16; i++) {
         if (i != 0 && i % 4 == 0)
-            printf("");
+            printf(" ");
         
         printf("%02x", GETCHAR(hash, i));
-        
     }
     printf("\n");
 }
@@ -69,13 +49,20 @@ int main(int argc, const char * argv[]) {
     cl_device_id device;
     
     //Parameter #1: platform
-    if (argc > 1) platformIndex = atoi(argv[1]);
+    if (argc > 1) {
+        platformIndex = atoi(argv[1]);
+        if ((platform = CLSelectPlatform(platformIndex)) == NULL)
+            platformIndex = -1;
+    }
     //Parameter #2: device
-    if (argc > 2) deviceIndex = atoi(argv[2]);
+    if (argc > 2) {
+        deviceIndex = atoi(argv[2]);
+        if ((device = CLSelectDevice(platform, deviceIndex)) == NULL)
+            deviceIndex = -1;
+    }
     
     //If user not select platform
-    if (argc < 2) {
-        
+    if (platformIndex == -1) {
         do {
             CLPrintPlatforms();
             
@@ -88,8 +75,7 @@ int main(int argc, const char * argv[]) {
     }
     
     //If user not select device
-    if (argc < 3) {
-        
+    if (deviceIndex == -1) {
         do {
             CLPrintDevices(platform);
             printf("Select Device: ");
