@@ -60,19 +60,18 @@
 (a) += (b);
 
 
-__kernel void MD5(uint numberOfWords, __global const uint4 * words, __global const uint * wordsLength, __global uint4 * hashes)
+__kernel void MD5(uint numberOfWords, __global const uint * words, __global const uint * wordsLength, __global uint4 * hashes)
 {
     uint id = get_global_id(0);
     if (id >= numberOfWords)
         return;
     
-    uint i = wordsLength[id];
+    uint i = 32;//wordsLength[id];
     uint key[16] = {0};
     
-    key[0] = words[id].x;
-    key[1] = words[id].y;
-    key[2] = words[id].z;
-    key[3] = words[id].w;
+    for (uint j = 0; j < 8; ++j) {
+        key[j] = words[id * 8 + j];
+    }
     
     PUTCHAR(key, i, 0x80);
     PUTCHAR(key, 56, i << 3);
@@ -161,17 +160,21 @@ __kernel void MD5(uint numberOfWords, __global const uint4 * words, __global con
 
 #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 
-__kernel void initWordsWithPad(uint numberOfWords, __constant char * charset, size_t charsetLength, __global uint * words, __global uint * wordsLength)
+__kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, size_t charsetLength, __global uint * words, __global uint * wordsLength)
 {
     uint index = get_global_id(0);
     if (index >= numberOfWords)
         return;
     
     uchar word[32] = {
-        0x28,0xBF,0x4E,0x5E,0x4E,0x75,0x8A,0x41,
-        0x64,0x00,0x4E,0x56,0xFF,0xFA,0x01,0x08,
-        0x2E,0x2E,0x00,0xB6,0xD0,0x68,0x3E,0x80,
-        0x2F,0x0C,0xA9,0xFE,0x64,0x53,0x69,0x7A
+        0x28,0xBF,0x4E,0x5E,
+        0x4E,0x75,0x8A,0x41,
+        0x64,0x00,0x4E,0x56,
+        0xFF,0xFA,0x01,0x08,
+        0x2E,0x2E,0x00,0xB6,
+        0xD0,0x68,0x3E,0x80,
+        0x2F,0x0C,0xA9,0xFE,
+        0x64,0x53,0x69,0x7A
     };
     
     uint n = index;
@@ -187,12 +190,24 @@ __kernel void initWordsWithPad(uint numberOfWords, __constant char * charset, si
         ++wordLength;
     }
     
-    uint * wordUInt = (uint *)word;
+    uint wordUInt[8] = {0};
+
+    for (int i = 0; i < 32; i++) {
+        PUTCHAR(wordUInt, i, word[i]);
+    }
+    
     
     for (int i = 0; i < 8; ++i) {
-        words[i] = wordUInt[i];
+        words[index * 8 + i] = wordUInt[i];
     }
     wordsLength[index] = wordLength;
+    
+    
+//    if (index == 2) {
+//        for (int k = 0; k < 32; k++)
+//            printf("%02X", word[k]);
+//        printf("\n");
+//    }
 }
 
 
@@ -219,7 +234,7 @@ __kernel void initWords(uint numberOfWords, __constant char * charset, size_t ch
         PUTCHAR(word, wordLength, charset[x]);
         wordLength++;
     }
-
+    
     words[index] = (uint4)(word[0], word[1], word[2], word[3]);
     wordsLength[index] = wordLength;
 }

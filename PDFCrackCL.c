@@ -19,7 +19,7 @@
 #include "CLPrint.h"
 
 #define BUFFER_SIZE 2048
-#define N 4
+#define N 8
 
 #define PUTCHAR(buf, index, val) (buf)[(index)>>2] = ((buf)[(index)>>2] & ~(0xffU << (((index) & 3) << 3))) + ((val) << (((index) & 3) << 3))
 #define GETCHAR(buf, index) (((unsigned char*)(buf))[(index)])
@@ -103,7 +103,7 @@ int main(int argc, const char * argv[]) {
     //size_t lws = 16;
     
     cl_event eventInitKernel;
-    cl_kernel initKernel = CLCreateKernel(program, "initWords");
+    cl_kernel initKernel = CLCreateKernel(program, "initWordsWithPad");
     CLSetKernelArg(initKernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(initKernel, 1, sizeof(charset_d), &charset_d, "charset_d");
     CLSetKernelArg(initKernel, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
@@ -130,8 +130,8 @@ int main(int argc, const char * argv[]) {
     unsigned int * hashes = malloc(dataSize);
     clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, dataSize, hashes, 1, &eventMD5Kernel, NULL);
     
-    for (int i = numberOfWords - 3; i < numberOfWords; i++) {
-        printHash(i, &hashes[i * N]);
+    for (int i = 0; i < 3; i++) {
+        printHash(i, &hashes[i * 4]);
     }
     printf("\n");
 
