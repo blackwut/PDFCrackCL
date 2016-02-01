@@ -24,8 +24,6 @@
 #define PUTCHAR(buf, index, val) (buf)[(index)>>2] = ((buf)[(index)>>2] & ~(0xffU << (((index) & 3) << 3))) + ((val) << (((index) & 3) << 3))
 #define GETCHAR(buf, index) (((unsigned char*)(buf))[(index)])
 
-unsigned char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
-
 void printHash(unsigned int i, unsigned int * hash)
 {
     printf("%d = ", i);
