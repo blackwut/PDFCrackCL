@@ -1,45 +1,4 @@
-////
-////  Kernels.c
-////  OpenCL
-////
-////  Created by Alberto Ottimo on 22/12/14.
-////
-////
-//
-//__kernel
-//void init(__global int * restrict v1, __global int * restrict v2, int numels) {
-//    int i = get_global_id(0); /* indice del work-item */
-//    if (i >= numels)
-//        return;
-//    v1[i] = i;
-//    v2[i] = numels - i;
-//}
-//
-//__kernel
-//void sum(__global int * restrict vsum, __global const int * restrict v1,
-//         __global const int * restrict v2, int numels) {
-//    int i = get_global_id(0); /* indice del work-item */
-//    if (i >= numels)
-//        return;
-//    vsum[i] = v1[i] + v2[i];
-//}
-
-
-/* MD5 OpenCL kernel based on Solar Designer's MD5 algorithm implementation at:
- * http://openwall.info/wiki/people/solar/software/public-domain-source-code/md5
- *
- * This software is Copyright (c) 2010, Dhiru Kholia <dhiru.kholia at gmail.com>,
- * and it is hereby released to the general public under the following terms:
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted.
- *
- * Useful References:
- * 1. CUDA MD5 Hashing Experiments, http://majuric.org/software/cudamd5/
- * 2. oclcrack, http://sghctoma.extra.hu/index.php?p=entry&id=11
- * 3. http://people.eku.edu/styere/Encrypt/JS-MD5.html
- * 4. http://en.wikipedia.org/wiki/MD5#Algorithm */
-
-#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : disable
+#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 
 /* Macros for reading/writing chars from int32's (from rar_kernel.cl) */
 #define GETCHAR(buf, index) (((uchar*)(buf))[(index)])
@@ -66,7 +25,11 @@ __kernel void MD5(uint numberOfWords, __global const uint * words, __global cons
     if (id >= numberOfWords)
         return;
     
-    uint i = 32;//wordsLength[id];
+//    //With PAD
+//    uint i = 32;
+    //Without PAD
+    uint i = wordsLength[id];
+    
     uint key[16] = {0};
     
     for (uint j = 0; j < 8; ++j) {
@@ -158,24 +121,25 @@ __kernel void MD5(uint numberOfWords, __global const uint * words, __global cons
     hashes[id] = (uint4)(a + 0x67452301, b + 0xefcdab89, c + 0x98badcfe, d + 0x10325476);
 }
 
-#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
-
 __kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, size_t charsetLength, __global uint * words, __global uint * wordsLength)
 {
     uint index = get_global_id(0);
     if (index >= numberOfWords)
         return;
-    
-    uchar word[32] = {
-        0x28,0xBF,0x4E,0x5E,
-        0x4E,0x75,0x8A,0x41,
-        0x64,0x00,0x4E,0x56,
-        0xFF,0xFA,0x01,0x08,
-        0x2E,0x2E,0x00,0xB6,
-        0xD0,0x68,0x3E,0x80,
-        0x2F,0x0C,0xA9,0xFE,
-        0x64,0x53,0x69,0x7A
-    };
+
+//    //With PAD
+//    uchar word[32] = {
+//        0x28,0xBF,0x4E,0x5E,
+//        0x4E,0x75,0x8A,0x41,
+//        0x64,0x00,0x4E,0x56,
+//        0xFF,0xFA,0x01,0x08,
+//        0x2E,0x2E,0x00,0xB6,
+//        0xD0,0x68,0x3E,0x80,
+//        0x2F,0x0C,0xA9,0xFE,
+//        0x64,0x53,0x69,0x7A
+//    };
+    //Without PAD
+    uchar word[32] = {0};
     
     uint n = index;
     uint nPrev;
@@ -192,50 +156,21 @@ __kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, s
     
     uint wordUInt[8] = {0};
 
-    for (int i = 0; i < 32; i++) {
+    for (uint i = 0; i < charsetLength; i++) {
         PUTCHAR(wordUInt, i, word[i]);
     }
     
     
-    for (int i = 0; i < 8; ++i) {
+    for (uint i = 0; i < 8; ++i) {
         words[index * 8 + i] = wordUInt[i];
     }
     wordsLength[index] = wordLength;
     
-    
+//    //LOG
 //    if (index == 2) {
 //        for (int k = 0; k < 32; k++)
 //            printf("%02X", word[k]);
 //        printf("\n");
 //    }
-}
-
-
-
-__kernel void initWords(uint numberOfWords, __constant char * charset, size_t charsetLength, __global uint4 * words, __global uint * wordsLength)
-{
-    uint index = get_global_id(0);
-    if (index >= numberOfWords)
-        return;
-    
-    uint n = index;
-    uint nPrev;
-    uint x = 0;
-    uint wordLength = 0;
-    
-    //char16 word = 0;
-    uint word[4] = {0};
-    while (n != 0 && wordLength < 16) {
-        nPrev = n;
-        //x = n % charsetLength; //0.721 GB/s 72%batteria char16
-        n = n / charsetLength;
-        x = nPrev - (n * charsetLength); //1,016 GB/s 72% batteria char16
-        //word[wordLength++] = charset[x];
-        PUTCHAR(word, wordLength, charset[x]);
-        wordLength++;
-    }
-    
-    words[index] = (uint4)(word[0], word[1], word[2], word[3]);
-    wordsLength[index] = wordLength;
 }
 
