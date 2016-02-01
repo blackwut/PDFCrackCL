@@ -235,9 +235,13 @@ void rc4_crypt(rc4_state_t* const state, const char* in, char* out, int buflen) 
     }
 }
 
-__kernel void do_rc4s(global const password_t* keys, global const password_t* messages, global password_hash_t* out) {
+__kernel void do_rc4s(uint numberOfWords, const char * key, const size_t keyLength, __global const char * messages, __global char * out) {
     
-    static const uchar initial_state[256] = {
+    uint id = get_global_id(0);
+    if (id >= numberOfWords)
+        return;
+    
+    uchar state[256] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
         0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
@@ -255,8 +259,32 @@ __kernel void do_rc4s(global const password_t* keys, global const password_t* me
         0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
         0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
     };
+    //KSA: Key-Scheduling Algorithm
+    uint i = 0;
+    uint j = 0;
+    uchar tmp;
+    for (; i < 256; ++i) {
+        j += (state[i] + key[i % keyLength]) % 256;
+        tmp = state[i];
+        state[i] = state[j];
+        state[j] = state[i];
+    }
     
-    int id = get_global_id(0);
+    i = 0;
+    j = 0;
+    uchar out[32] = {0};
+    for (){
+        i = (i + 1) % 256;
+        j = (j + state[i]) % 256;
+        
+        tmp = state[i];
+        state[i] = state[j];
+        state[j] = state[i];
+        
+        out[] = state[ (state[i] + state[j]) % 256 ];
+    }
+    
+    
     uint i;
     password_t key;
     password_t message;
