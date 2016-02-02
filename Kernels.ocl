@@ -174,11 +174,15 @@ __kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, s
 //    }
 }
 
-__kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLength, __global const char * messages, __global uint * hashes) {
+
+__kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLength, __global uchar * words, __global uint4 * hashes) {
     
     uint id = get_global_id(0);
     if (id >= numberOfWords)
         return;
+    
+    //Getting the current word
+    __global uchar * word = words + (id * 32);
     
     uchar state[256] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -198,42 +202,44 @@ __kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLen
         0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
         0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
     };
+    uint i;
+    uchar k, j, tmp;
+    uchar out[32] = {0};
+
     //KSA: Key-Scheduling Algorithm
-    uint i = 0;
-    uint j = 0;
-    uchar tmp;
-    for (; i < 256; ++i) {
-        j = (j + state[i] + key[i % keyLength]) % 256;
+    j = 0;
+    for (i = 0; i < 256; ++i) {
+        j = j + state[i] + key[i % keyLength];
+        
+        //Swap
         tmp = state[i];
         state[i] = state[j];
         state[j] = tmp;
     }
 
     //PRGA: Pseudo-Random Generation Algorithm
-    i = 0;
     j = 0;
-    uchar out[32] = {0};
-    for (uint k = 0; k < 32; ++k){
-        i = (i + 1) % 256;
-        j = (j + state[i]) % 256;
+    k = 0;
+    for (i = 0; i < 32; ++i) {
+        j = (j + 1);
+        k = (k + state[j]);
         
-        tmp = state[i];
-        state[i] = state[j];
+        //Swap
+        tmp = state[k];
+        state[k] = state[j];
         state[j] = tmp;
 
-        out[k] = messages[k] ^ state[ (state[i] + state[j]) % 256 ];
-    }
-    for (int k = 0; k < keyLength; k++) {
-        printf("%d: %c \n",k,  key[k]);
-    }
-
-    for (int k = 0; k < 32; k++) {
-        printf("%d: %c \n",k,  messages[k]);
+        //Index of state to avoid outbound array state
+        tmp = state[j] + state[k];
+        
+        out[i] = word[i] ^ state[tmp];
     }
     
-    for (int k = 0; k < 32; k++) {
-        printf("%02X ", out[k]);
-    }
-    printf("\n");
-    //hashes[id] = (uint4)out;
+//    for (int k = 0; k < 32; k++) {
+//        printf("%02X ", out[k]);
+//    }
+//    printf("\n");
+
+    uint * outUInt = (uint *)out;
+    hashes[id] = (uint4)(outUInt[0], outUInt[1], outUInt[2], outUInt[3]);
 }
