@@ -174,68 +174,7 @@ __kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, s
 //    }
 }
 
-
-//RC4
-static __inline void swap_bytes(uchar* a, uchar* b) {
-    uchar temp;
-    
-    temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-/*
- * Initialize an RC4 state buffer using the supplied key,
- * which can have arbitrary length.
- */
-void rc4_init(rc4_state_t* const state, const char* key, int keylen) {
-    uchar j;
-    int i;
-    const uchar* keybuf = (const uchar*) key;
-    
-    /* Initialize state with identity permutation */
-    for (i = 0; i < 256; i++) {
-        state->perm[i] = (uchar)i;
-    }
-    state->index1 = 0;
-    state->index2 = 0;
-    
-    /* Randomize the permutation using key data */
-    for (j = i = 0; i < 256; i++) {
-        j += state->perm[i] + keybuf[i % keylen];
-        swap_bytes(&state->perm[i], &state->perm[j]);
-    }
-}
-
-/*
- * Encrypt some data using the supplied RC4 state buffer.
- * The input and output buffers may be the same buffer.
- * Since RC4 is a stream cypher, this function is used
- * for both encryption and decryption.
- */
-void rc4_crypt(rc4_state_t* const state, const char* in, char* out, int buflen) {
-    int i;
-    uchar j;
-    const uchar* inbuf = (const uchar*) in;
-    uchar* outbuf = (uchar*) out;
-    
-    for (i = 0; i < buflen; i++) {
-        
-        /* Update modification indicies */
-        state->index1++;
-        state->index2 += state->perm[state->index1];
-        
-        /* Modify permutation */
-        swap_bytes(&state->perm[state->index1],
-                   &state->perm[state->index2]);
-        
-        /* Encrypt/decrypt next byte */
-        j = state->perm[state->index1] + state->perm[state->index2];
-        outbuf[i] = inbuf[i] ^ state->perm[j];
-    }
-}
-
-__kernel void do_rc4s(uint numberOfWords, const char * key, const size_t keyLength, __global const char * messages, __global char * out) {
+__kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLength, __global const char * messages, __global uint * hashes) {
     
     uint id = get_global_id(0);
     if (id >= numberOfWords)
@@ -264,45 +203,37 @@ __kernel void do_rc4s(uint numberOfWords, const char * key, const size_t keyLeng
     uint j = 0;
     uchar tmp;
     for (; i < 256; ++i) {
-        j += (state[i] + key[i % keyLength]) % 256;
+        j = (j + state[i] + key[i % keyLength]) % 256;
         tmp = state[i];
         state[i] = state[j];
-        state[j] = state[i];
+        state[j] = tmp;
     }
-    
+
+    //PRGA: Pseudo-Random Generation Algorithm
     i = 0;
     j = 0;
     uchar out[32] = {0};
-    for (){
+    for (uint k = 0; k < 32; ++k){
         i = (i + 1) % 256;
         j = (j + state[i]) % 256;
         
         tmp = state[i];
         state[i] = state[j];
-        state[j] = state[i];
-        
-        out[] = state[ (state[i] + state[j]) % 256 ];
+        state[j] = tmp;
+
+        out[k] = messages[k] ^ state[ (state[i] + state[j]) % 256 ];
+    }
+    for (int k = 0; k < keyLength; k++) {
+        printf("%d: %c \n",k,  key[k]);
+    }
+
+    for (int k = 0; k < 32; k++) {
+        printf("%d: %c \n",k,  messages[k]);
     }
     
-    
-    uint i;
-    password_t key;
-    password_t message;
-    password_hash_t lhash;
-    for (i = 0; i < keys[id].size_bytes; i++) {
-        key.password[i] = keys[id].password[i];
+    for (int k = 0; k < 32; k++) {
+        printf("%02X ", out[k]);
     }
-    key.size_bytes = keys[id].size_bytes;
-    for (i = 0; i < messages[id].size_bytes; i++) {
-        message.password[i] = messages[id].password[i];
-    }
-    message.size_bytes = messages[id].size_bytes;
-    
-    rc4_state_t state;
-    rc4_init(&state, key.password, key.size_bytes);
-    rc4_crypt(&state, message.password, (char*) &lhash, message.size_bytes);
-    
-    for (i = 0; i < 4; i++) {
-        out[id].v[i] = lhash.v[i];
-    }
+    printf("\n");
+    //hashes[id] = (uint4)out;
 }

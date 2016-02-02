@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <time.h>
 
-#define BUFFER_SIZE (8*1024)
+#define BUFFER_SIZE (16 * 1024)
 
 void CLErrorCheck(cl_int error, const char * function, const char * message, int needExit)
 {

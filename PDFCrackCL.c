@@ -18,7 +18,7 @@
 
 #include "CLPrint.h"
 
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE (16 * 1024)
 #define N 8
 
 #define PUTCHAR(buf, index, val) (buf)[(index)>>2] = ((buf)[(index)>>2] & ~(0xffU << (((index) & 3) << 3))) + ((val) << (((index) & 3) << 3))
@@ -113,6 +113,33 @@ int main(int argc, const char * argv[]) {
     CLEnqueueNDRangeKernel(queue, initKernel, NULL, &gws, NULL, 0, NULL, &eventInitKernel, "initKernel");
     CLFinish(queue);
 
+    
+    cl_event eventRC4Kernel;
+    cl_kernel rc4Kernel = CLCreateKernel(program, "RC4");
+    unsigned int num = 1;
+    char key[3] = "key";
+    size_t keyLen = (size_t)3;
+    char * msg = "porcodioporcodioporcodioporcodio";
+    cl_mem key_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 3, key, "key_d");
+    cl_mem msg_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 32, msg, "msg_d");
+    cl_mem hash_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, 4 * sizeof(unsigned int), "hash");
+
+    CLSetKernelArg(rc4Kernel, 0, sizeof(num), &num, "num");
+    CLSetKernelArg(rc4Kernel, 1, sizeof(key_d), &key_d, "key_d");
+    CLSetKernelArg(rc4Kernel, 2, sizeof(keyLen), &keyLen, "keyLen");
+    CLSetKernelArg(rc4Kernel, 3, sizeof(msg_d), &msg_d, "msg_d");
+    CLSetKernelArg(rc4Kernel, 4, sizeof(hash_d), &hash_d, "hash");
+
+    
+    size_t gwsRC4 = 1;
+    CLEnqueueNDRangeKernel(queue, rc4Kernel, NULL, &gwsRC4, NULL, 0, NULL, &eventRC4Kernel, "rc4Kernel");
+    CLFinish(queue);
+    
+//    unsigned int * hashRC4 = malloc(4 * sizeof(unsigned int));
+//    clEnqueueReadBuffer(queue, hash_d, CL_TRUE, 0, 4 * sizeof(unsigned int), hashRC4, 1, &eventRC4Kernel, NULL);
+//    printHash(0, &hashRC4[0]);
+//    printf("\n");
+    
     
     //KERNEL MD5
     cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, "hashes_d");
