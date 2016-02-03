@@ -174,15 +174,22 @@ __kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, s
 //    }
 }
 
+#define valuesToUInt4(values)   \
+({  \
+uint * valuesUInt = (uint *)(values);   \
+(uint4)(valuesUInt[0], valuesUInt[1], valuesUInt[2], valuesUInt[3]); \
+})
 
-__kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLength, __global uchar * words, __global uint4 * hashes) {
+__kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLength, __global uchar * words, __global uint * wordsLength, __global uint4 * hashes) {
     
     uint id = get_global_id(0);
     if (id >= numberOfWords)
         return;
     
     //Getting the current word
-    __global uchar * word = words + (id * 32);
+    __global uchar * word = words; //+ (id * 32);
+    //Getting the current word length
+    uint wordLength = wordsLength[id];
     
     uchar state[256] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -204,7 +211,7 @@ __kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLen
     };
     uint i;
     uchar k, j, tmp;
-    uchar out[32] = {0};
+    uchar * out = malloc(wordLength * sizeof(uchar));
 
     //KSA: Key-Scheduling Algorithm
     j = 0;
@@ -220,7 +227,7 @@ __kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLen
     //PRGA: Pseudo-Random Generation Algorithm
     j = 0;
     k = 0;
-    for (i = 0; i < 32; ++i) {
+    for (i = 0; i < wordLength; ++i) {
         j = (j + 1);
         k = (k + state[j]);
         
@@ -234,12 +241,10 @@ __kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLen
         
         out[i] = word[i] ^ state[tmp];
     }
-    
-//    for (int k = 0; k < 32; k++) {
-//        printf("%02X ", out[k]);
-//    }
-//    printf("\n");
 
-    uint * outUInt = (uint *)out;
-    hashes[id] = (uint4)(outUInt[0], outUInt[1], outUInt[2], outUInt[3]);
+    //uint * outUInt = (uint *)out;
+    hashes[0] = valuesToUInt4(out);//(uint4)(outUInt[0], outUInt[1], outUInt[2], outUInt[3]);
 }
+
+
+

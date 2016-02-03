@@ -116,24 +116,32 @@ int main(int argc, const char * argv[]) {
     
     cl_event eventRC4Kernel;
     cl_kernel rc4Kernel = CLCreateKernel(program, "RC4");
-    unsigned int num = 1;
+    unsigned int num = 1024 * 64;
     char key[3] = "key";
     size_t keyLen = (size_t)3;
     char * msg = "porcodioporcodioporcodioporcodio";
+    unsigned int * msgLen = malloc(num * sizeof(unsigned int));
+    for (int i = 0; i < num; ++i) {
+        msgLen[i] = 32;
+    }
     cl_mem key_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 3, key, "key_d");
     cl_mem msg_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 32, msg, "msg_d");
-    cl_mem hash_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, 4 * sizeof(unsigned int), "hash");
+    cl_mem msgLen_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * num, msgLen, "msgLen_d");
+    cl_mem hash_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, 4 * sizeof(unsigned int), "hash_d");
 
     CLSetKernelArg(rc4Kernel, 0, sizeof(num), &num, "num");
     CLSetKernelArg(rc4Kernel, 1, sizeof(key_d), &key_d, "key_d");
     CLSetKernelArg(rc4Kernel, 2, sizeof(keyLen), &keyLen, "keyLen");
     CLSetKernelArg(rc4Kernel, 3, sizeof(msg_d), &msg_d, "msg_d");
-    CLSetKernelArg(rc4Kernel, 4, sizeof(hash_d), &hash_d, "hash");
+    CLSetKernelArg(rc4Kernel, 4, sizeof(msgLen_d), &msgLen_d, "msgLen_d");
+    CLSetKernelArg(rc4Kernel, 5, sizeof(hash_d), &hash_d, "hash");
 
     
-    size_t gwsRC4 = 1;
+    size_t gwsRC4 = num;
     CLEnqueueNDRangeKernel(queue, rc4Kernel, NULL, &gwsRC4, NULL, 0, NULL, &eventRC4Kernel, "rc4Kernel");
     CLFinish(queue);
+    
+    printStatsKernel(eventRC4Kernel, gwsRC4, gwsRC4 * sizeof(char) * 32 * 2, "rc4Kernel");
     
 //    unsigned int * hashRC4 = malloc(4 * sizeof(unsigned int));
 //    clEnqueueReadBuffer(queue, hash_d, CL_TRUE, 0, 4 * sizeof(unsigned int), hashRC4, 1, &eventRC4Kernel, NULL);
