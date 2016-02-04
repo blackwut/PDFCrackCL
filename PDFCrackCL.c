@@ -91,7 +91,7 @@ int main(int argc, const char * argv[]) {
     unsigned int numberOfWords = 1;//1024 * 1024;
     size_t dataSize = sizeof(unsigned int) * 32 * numberOfWords;
     char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
-    size_t charsetLength = strlen(charset);
+    size_t charsetLength = 36;
 
     
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");

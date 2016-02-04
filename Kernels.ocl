@@ -260,6 +260,7 @@ __kernel void initWordsWithPad(uint numberOfWords, __constant uchar * charset, s
         n = n / charsetLength;
         x = nPrev - (n * charsetLength);
         word[wordLength] = charset[x];
+        printf("charsetLen = %d", charsetLength);
         ++wordLength;
     }
     
