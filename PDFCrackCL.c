@@ -97,7 +97,8 @@ int main(int argc, const char * argv[]) {
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
     cl_mem words_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, "words_d");
     cl_mem wordsLength_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, numberOfWords * sizeof(unsigned int), "wordsLength_d");
-    
+    cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, "hashes_d");
+
     
     size_t gws = numberOfWords;
     //size_t lws = 16;
@@ -108,78 +109,118 @@ int main(int argc, const char * argv[]) {
     CLSetKernelArg(initKernel, 1, sizeof(charset_d), &charset_d, "charset_d");
     CLSetKernelArg(initKernel, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
     CLSetKernelArg(initKernel, 3, sizeof(words_d), &words_d, "words_d");
-    CLSetKernelArg(initKernel, 4, sizeof(wordsLength_d), &wordsLength_d, "wordsLength_d");
+    CLSetKernelArg(initKernel, 4, sizeof(hashes_d), &hashes_d, "hashes_d");
+
 
     CLEnqueueNDRangeKernel(queue, initKernel, NULL, &gws, NULL, 0, NULL, &eventInitKernel, "initKernel");
     CLFinish(queue);
 
     
-    cl_event eventRC4Kernel;
-    cl_kernel rc4Kernel = CLCreateKernel(program, "RC4");
-    unsigned int num = 1024 * 64;
-    char key[3] = "key";
-    size_t keyLen = (size_t)3;
-    char * msg = "porcodioporcodioporcodioporcodio";
-    unsigned int * msgLen = malloc(num * sizeof(unsigned int));
-    for (int i = 0; i < num; ++i) {
-        msgLen[i] = 32;
-    }
-    cl_mem key_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 3, key, "key_d");
-    cl_mem msg_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 32, msg, "msg_d");
-    cl_mem msgLen_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * num, msgLen, "msgLen_d");
-    cl_mem hash_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, 4 * sizeof(unsigned int), "hash_d");
-
-    CLSetKernelArg(rc4Kernel, 0, sizeof(num), &num, "num");
-    CLSetKernelArg(rc4Kernel, 1, sizeof(key_d), &key_d, "key_d");
-    CLSetKernelArg(rc4Kernel, 2, sizeof(keyLen), &keyLen, "keyLen");
-    CLSetKernelArg(rc4Kernel, 3, sizeof(msg_d), &msg_d, "msg_d");
-    CLSetKernelArg(rc4Kernel, 4, sizeof(msgLen_d), &msgLen_d, "msgLen_d");
-    CLSetKernelArg(rc4Kernel, 5, sizeof(hash_d), &hash_d, "hash");
-
+//    //RC4
+//    cl_event eventRC4Kernel;
+//    cl_kernel rc4Kernel = CLCreateKernel(program, "RC4");
+//    unsigned int num = 1024 * 64;
+//    char key[3] = "key";
+//    size_t keyLen = (size_t)3;
+//    char * msg = "porcodioporcodioporcodioporcodio";
+//    unsigned int * msgLen = malloc(num * sizeof(unsigned int));
+//    for (int i = 0; i < num; ++i) {
+//        msgLen[i] = 32;
+//    }
+//    cl_mem key_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 3, key, "key_d");
+//    cl_mem msg_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 32, msg, "msg_d");
+//    cl_mem msgLen_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * num, msgLen, "msgLen_d");
+//    cl_mem hash_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, 4 * sizeof(unsigned int), "hash_d");
+//
+//    CLSetKernelArg(rc4Kernel, 0, sizeof(num), &num, "num");
+//    CLSetKernelArg(rc4Kernel, 1, sizeof(key_d), &key_d, "key_d");
+//    CLSetKernelArg(rc4Kernel, 2, sizeof(keyLen), &keyLen, "keyLen");
+//    CLSetKernelArg(rc4Kernel, 3, sizeof(msg_d), &msg_d, "msg_d");
+//    CLSetKernelArg(rc4Kernel, 4, sizeof(msgLen_d), &msgLen_d, "msgLen_d");
+//    CLSetKernelArg(rc4Kernel, 5, sizeof(hash_d), &hash_d, "hash");
+//
+//    
+//    size_t gwsRC4 = num;
+//    CLEnqueueNDRangeKernel(queue, rc4Kernel, NULL, &gwsRC4, NULL, 0, NULL, &eventRC4Kernel, "rc4Kernel");
+//    CLFinish(queue);
+//    
+//    printStatsKernel(eventRC4Kernel, gwsRC4, gwsRC4 * sizeof(char) * 32 * 2, "rc4Kernel");
     
-    size_t gwsRC4 = num;
-    CLEnqueueNDRangeKernel(queue, rc4Kernel, NULL, &gwsRC4, NULL, 0, NULL, &eventRC4Kernel, "rc4Kernel");
-    CLFinish(queue);
     
-    printStatsKernel(eventRC4Kernel, gwsRC4, gwsRC4 * sizeof(char) * 32 * 2, "rc4Kernel");
-    
-//    unsigned int * hashRC4 = malloc(4 * sizeof(unsigned int));
-//    clEnqueueReadBuffer(queue, hash_d, CL_TRUE, 0, 4 * sizeof(unsigned int), hashRC4, 1, &eventRC4Kernel, NULL);
-//    printHash(0, &hashRC4[0]);
+//    //KERNEL MD5
+//    cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, "hashes_d");
+//    
+//    cl_event eventMD5Kernel;
+//    cl_kernel md5Kernel = CLCreateKernel(program, "MD5");
+//    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+//    CLSetKernelArg(md5Kernel, 1, sizeof(words_d), &words_d, "words_d");
+//    CLSetKernelArg(md5Kernel, 2, sizeof(wordsLength_d), &wordsLength_d, "wordsLength_d");
+//    CLSetKernelArg(md5Kernel, 3, sizeof(hashes_d), &hashes_d, "hashes_d");
+//    
+//    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5Kernel, "MD5Kernel");
+//    CLFinish(queue);
+//
+//    unsigned int * hashes = malloc(dataSize);
+//    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, dataSize, hashes, 1, &eventMD5Kernel, NULL);
+//    
+//    for (int i = 0; i < 3; i++) {
+//        printHash(i, &hashes[i * 4]);
+//    }
 //    printf("\n");
-    
-    
-    //KERNEL MD5
-    cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, "hashes_d");
-    
-    cl_event eventMD5Kernel;
+
+
+    cl_event eventMD5KernelFirst;
     cl_kernel md5Kernel = CLCreateKernel(program, "MD5");
     CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(md5Kernel, 1, sizeof(words_d), &words_d, "words_d");
-    CLSetKernelArg(md5Kernel, 2, sizeof(wordsLength_d), &wordsLength_d, "wordsLength_d");
-    CLSetKernelArg(md5Kernel, 3, sizeof(hashes_d), &hashes_d, "hashes_d");
+    CLSetKernelArg(md5Kernel, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
     
-    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5Kernel, "MD5Kernel");
+    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelFirst, "MD5Kernel");
     CLFinish(queue);
-
-    unsigned int * hashes = malloc(dataSize);
-    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, dataSize, hashes, 1, &eventMD5Kernel, NULL);
     
-    for (int i = 0; i < 3; i++) {
+    cl_event eventMD5KernelSecond;
+    struct _cl_buffer_region region;
+    region.origin = numberOfWords * sizeof(unsigned int) * 16;
+    region.size = region.origin;
+    cl_mem subWords_d = clCreateSubBuffer(words_d, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, &region, NULL);
+    
+    md5Kernel = CLCreateKernel(program, "MD5");
+    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(md5Kernel, 1, sizeof(subWords_d), &subWords_d, "subWords_d");
+    CLSetKernelArg(md5Kernel, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
+    
+    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5Kernel");
+    CLFinish(queue);
+    
+    
+//    md5Kernel = CLCreateKernel(program, "MD5_50");
+//    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+//    CLSetKernelArg(md5Kernel, 1, sizeof(hashes_d), &hashes_d, "hashes_d");
+//    
+//    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5Kernel");
+//    CLFinish(queue);
+    
+    
+    unsigned int * hashes = malloc(dataSize);
+    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, dataSize, hashes, 1, &eventMD5KernelSecond, NULL);
+    
+    for (int i = 0; i < 1; i++) {
         printHash(i, &hashes[i * 4]);
     }
     printf("\n");
 
+    
+    
     size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + (numberOfWords * N * sizeof(unsigned int)) + numberOfWords * sizeof(unsigned int);
     printStatsKernel(eventInitKernel, numberOfWords, initDataSize, "initKernel");
     
-    size_t md5DataSize = sizeof(numberOfWords) + (2 * (numberOfWords * N * sizeof(unsigned int))) + numberOfWords * sizeof(unsigned int);
-    printStatsKernel(eventMD5Kernel, numberOfWords, md5DataSize, "md5Kernel");
+//    size_t md5DataSize = sizeof(numberOfWords) + (2 * (numberOfWords * N * sizeof(unsigned int))) + numberOfWords * sizeof(unsigned int);
+//    printStatsKernel(eventMD5Kernel, numberOfWords, md5DataSize, "md5Kernel");
     
     CLReleaseMemObject(charset_d, "charset_d");
     CLReleaseMemObject(words_d, "words_d");
     CLReleaseMemObject(wordsLength_d, "wordsLength_d");
-    CLReleaseMemObject(hashes_d, "hashes_d");
+//    CLReleaseMemObject(hashes_d, "hashes_d");
     
     free(hashes);
     
