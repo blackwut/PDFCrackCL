@@ -193,12 +193,14 @@ int main(int argc, const char * argv[]) {
     CLFinish(queue);
     
     
-//    md5Kernel = CLCreateKernel(program, "MD5_50");
-//    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-//    CLSetKernelArg(md5Kernel, 1, sizeof(hashes_d), &hashes_d, "hashes_d");
-//    
-//    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5Kernel");
-//    CLFinish(queue);
+    for (unsigned int i = 0; i < 50; i++) {
+        md5Kernel = CLCreateKernel(program, "MD5_50");
+        CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+        CLSetKernelArg(md5Kernel, 1, sizeof(hashes_d), &hashes_d, "hashes_d");
+        
+        CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5Kernel");
+        CLFinish(queue);
+    }
     
     
     unsigned int * hashes = malloc(dataSize);
