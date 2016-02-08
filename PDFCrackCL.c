@@ -202,9 +202,9 @@ int main(int argc, const char * argv[]) {
     CLFinish(queue);
     
     cl_event eventMD5KernelSecond;
-//    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(md5Kernel, 1, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-//    CLSetKernelArg(md5Kernel, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
+    CLSetKernelArg(md5Kernel, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
     CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5Kernel");
     CLFinish(queue);
 
