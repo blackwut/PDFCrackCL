@@ -114,6 +114,17 @@ __kernel void MD5(uint numberOfWords, __global const uint * words, __global uint
     STEP(I, b, c, d, a, GET(9) , 0xeb86d391, 21)
     
     hashes[id] += (uint4)(a, b, c, d);
+    //hashes[id] = (uint4)(a + 0x67452301, b + 0xefcdab89, c + 0x98badcfe, d + 0x10325476);
+
+    if (id == 2) {
+        
+        printf("%x", hashes[id].x);
+        printf("%x", hashes[id].y);
+        printf("%x", hashes[id].z);
+        printf("%x", hashes[id].w);
+
+        printf("\n");
+    }
 }
 
 __kernel void MD5_50(uint numberOfWords, __global uint4 * hashes)
@@ -284,15 +295,15 @@ __kernel void initWords(unsigned int numberOfWords, __constant unsigned char * r
         wordsHalfTwo[id * 16 + i] = (word[i * 4 + 64] << 24) | (word[i * 4 + 1 + 64] << 16) | (word[i * 4 + 2 + 64] << 8) | (word[i * 4 + 3 + 64]);
     }
     
-//    if ( id == 2) {
-//        for (i = 0; i < 32; ++i) {
-//            if (i < 16) {
-//                printf("%08X", wordHalfOne[id * 16 + i]);
-//            } else {
-//                printf("%08X", wordHalfTwo[id * 16 + i -16]);
-//            }
-//        }
-//    }
+    if ( id == 4) {
+        for (i = 0; i < 16; ++i) {
+            printf("%08X", wordsHalfOne[id * 16 + i]);
+        }
+        for (i = 0; i < 16; ++i) {
+            printf("%08X", wordsHalfTwo[id * 16 + i]);
+        }
+        printf("\n");
+    }
     hashes[id] = (uint4)(0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476);
 }
 
