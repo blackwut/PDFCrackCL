@@ -126,6 +126,16 @@ cl_kernel CLCreateKernel(cl_program program, const char * kernelName)
     return kernel;
 }
 
+size_t CLGetPreferredWorkGroupSizeMultiple(cl_kernel kernel, cl_device_id device, const char * name)
+{
+    cl_int error;
+    size_t preferredWorkGroupSizeMultiple;
+    
+    error = clGetKernelWorkGroupInfo(kernel, device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(preferredWorkGroupSizeMultiple), &preferredWorkGroupSizeMultiple, NULL);
+    printf("(%s) Preferred Work Group Size Multiple: %zu\n", name, preferredWorkGroupSizeMultiple);
+    return preferredWorkGroupSizeMultiple;
+}
+
 cl_mem CLCreateBufferHostVar(cl_context context, cl_mem_flags flags, size_t size, void * hostVar, const char * name)
 {
     cl_int error;

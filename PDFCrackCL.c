@@ -121,25 +121,95 @@ int main(int argc, const char * argv[]) {
 
     
     size_t gws = numberOfWords;
-    //size_t lws = 16;
+    size_t lws;
     
-    cl_event eventInitKernel;
-    cl_kernel initKernel = CLCreateKernel(program, "initWords");
-    CLSetKernelArg(initKernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-    CLSetKernelArg(initKernel, 1, sizeof(charset_d), &charset_d, "charset_d");
-    CLSetKernelArg(initKernel, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
-    CLSetKernelArg(initKernel, 3, sizeof(O_d), &O_d, "O_d");
-    CLSetKernelArg(initKernel, 4, sizeof(P_d), &P_d, "P_d");
-    CLSetKernelArg(initKernel, 5, sizeof(fileID_d), &fileID_d, "fileID_d");
-    CLSetKernelArg(initKernel, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
-    CLSetKernelArg(initKernel, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-    CLSetKernelArg(initKernel, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
-
-    CLEnqueueNDRangeKernel(queue, initKernel, NULL, &gws, NULL, 0, NULL, &eventInitKernel, "initKernel");
-    CLFinish(queue);
+    cl_event eventInitWords;
+    cl_event eventMD5First;
+    cl_event eventMD5Second;
+    cl_event eventMD5_50;
+    
+    cl_kernel kernelInitWords = CLCreateKernel(program, "initWords");
+    cl_kernel kernelMD5 = CLCreateKernel(program, "MD5");
+    cl_kernel kernelMD5_50 = CLCreateKernel(program, "MD5_50");
 
     
+    //Init Words
+    CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(kernelInitWords, 1, sizeof(charset_d), &charset_d, "charset_d");
+    CLSetKernelArg(kernelInitWords, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
+    CLSetKernelArg(kernelInitWords, 3, sizeof(O_d), &O_d, "O_d");
+    CLSetKernelArg(kernelInitWords, 4, sizeof(P_d), &P_d, "P_d");
+    CLSetKernelArg(kernelInitWords, 5, sizeof(fileID_d), &fileID_d, "fileID_d");
+    CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
+    CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
+    CLSetKernelArg(kernelInitWords, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
+
+    lws = CLGetPreferredWorkGroupSizeMultiple(kernelInitWords, device, "kernelInitWords");
+    CLEnqueueNDRangeKernel(queue, kernelInitWords, NULL, &gws, &lws, 0, NULL, &eventInitWords, "kernelInitWords");
+
+    //MD5 First
+    CLSetKernelArg(kernelMD5, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(kernelMD5, 1, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
+    CLSetKernelArg(kernelMD5, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
     
+    lws = CLGetPreferredWorkGroupSizeMultiple(kernelMD5, device, "kernelMD5_First/Second");
+    CLEnqueueNDRangeKernel(queue, kernelMD5, NULL, &gws, &lws, 1, &eventInitWords, &eventMD5First, "kernelMD5_First");
+    
+    
+    //MD5 Second
+    //CLSetKernelArg(kernelMD5, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(kernelMD5, 1, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
+    //CLSetKernelArg(kernelMD5, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
+    CLEnqueueNDRangeKernel(queue, kernelMD5, NULL, &gws, &lws, 1, &eventMD5First, &eventMD5Second, "kernelMD5_Second");
+
+    
+    
+    //MD5_50
+    CLSetKernelArg(kernelMD5_50, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(kernelMD5_50, 1, sizeof(hashes_d), &hashes_d, "hashes_d");
+    
+    lws = CLGetPreferredWorkGroupSizeMultiple(kernelMD5_50, device, "kernelMD5_50");
+    CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5Second, &eventMD5_50, "kernelMD5_50");
+
+    for (unsigned int i = 1; i < 50; ++i) {
+        CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5_50, &eventMD5_50, "kernelMD5_50");
+    }
+    
+    unsigned int * hashes = malloc(hashesDataSize);
+    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, hashesDataSize, hashes, 1, &eventMD5_50, NULL);
+    
+    printf("after 50 times:\n");
+    for (int i = 0; i < 3; i++) {
+        printHash(i, &hashes[i * 4]);
+    }
+    printf("\n");
+    
+    
+    
+    size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
+    printStatsKernel(eventInitWords, numberOfWords, initDataSize, "initKernel");
+    
+    size_t md5DataSize = sizeof(numberOfWords) + wordsHalfDataSize + hashesDataSize;
+    printStatsKernel(eventMD5First, numberOfWords, md5DataSize, "MD5_firstKernel");
+    printStatsKernel(eventMD5Second, numberOfWords, md5DataSize, "MD5_SecondKernel");
+    
+    size_t md5_50DataSize = sizeof(numberOfWords) + numberOfWords * 16 * sizeof(unsigned int);
+    printStatsKernel(eventMD5_50, numberOfWords, md5_50DataSize, "MD5_50Kernel");
+    
+    CLReleaseMemObject(charset_d, "charset_d");
+    CLReleaseMemObject(O_d, "O_d");
+    CLReleaseMemObject(P_d, "P_d");
+    CLReleaseMemObject(fileID_d, "fileID_d");
+    CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
+    CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
+    CLReleaseMemObject(hashes_d, "hashes_d");
+    
+    free(hashes);
+    
+    return EXIT_SUCCESS;
+}
+
+
 //    //RC4
 //    cl_event eventRC4Kernel;
 //    cl_kernel rc4Kernel = CLCreateKernel(program, "RC4");
@@ -163,91 +233,10 @@ int main(int argc, const char * argv[]) {
 //    CLSetKernelArg(rc4Kernel, 4, sizeof(msgLen_d), &msgLen_d, "msgLen_d");
 //    CLSetKernelArg(rc4Kernel, 5, sizeof(hash_d), &hash_d, "hash");
 //
-//    
+//
 //    size_t gwsRC4 = num;
 //    CLEnqueueNDRangeKernel(queue, rc4Kernel, NULL, &gwsRC4, NULL, 0, NULL, &eventRC4Kernel, "rc4Kernel");
 //    CLFinish(queue);
-//    
-//    printStatsKernel(eventRC4Kernel, gwsRC4, gwsRC4 * sizeof(char) * 32 * 2, "rc4Kernel");
-    
-    
-//    //KERNEL MD5
-//    cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, "hashes_d");
-//    
-//    cl_event eventMD5Kernel;
-//    cl_kernel md5Kernel = CLCreateKernel(program, "MD5");
-//    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-//    CLSetKernelArg(md5Kernel, 1, sizeof(words_d), &words_d, "words_d");
-//    CLSetKernelArg(md5Kernel, 2, sizeof(wordsLength_d), &wordsLength_d, "wordsLength_d");
-//    CLSetKernelArg(md5Kernel, 3, sizeof(hashes_d), &hashes_d, "hashes_d");
-//    
-//    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5Kernel, "MD5Kernel");
-//    CLFinish(queue);
 //
-//    unsigned int * hashes = malloc(dataSize);
-//    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, dataSize, hashes, 1, &eventMD5Kernel, NULL);
-//    
-//    for (int i = 0; i < 3; i++) {
-//        printHash(i, &hashes[i * 4]);
-//    }
-//    printf("\n");
+//    printStatsKernel(eventRC4Kernel, gwsRC4, gwsRC4 * sizeof(char) * 32 * 2, "rc4Kernel");
 
-
-    cl_event eventMD5KernelFirst;
-    cl_kernel md5Kernel = CLCreateKernel(program, "MD5");
-    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-    CLSetKernelArg(md5Kernel, 1, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
-    CLSetKernelArg(md5Kernel, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
-    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelFirst, "MD5Kernel");
-    CLFinish(queue);
-    
-    cl_event eventMD5KernelSecond;
-    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-    CLSetKernelArg(md5Kernel, 1, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-    CLSetKernelArg(md5Kernel, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
-    CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5Kernel");
-    CLFinish(queue);
-
-    
-    unsigned int * hashes = malloc(hashesDataSize);
-    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, hashesDataSize, hashes, 1, &eventMD5KernelSecond, NULL);
-    
-    for (int i = 0; i < 3; i++) {
-        printHash(i, &hashes[i * 4]);
-    }
-    printf("\n");
-
-    
-    md5Kernel = CLCreateKernel(program, "MD5_50");
-    CLSetKernelArg(md5Kernel, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-    CLSetKernelArg(md5Kernel, 1, sizeof(hashes_d), &hashes_d, "hashes_d");
-    for (unsigned int i = 0; i < 50; ++i) {
-        CLEnqueueNDRangeKernel(queue, md5Kernel, NULL, &gws, NULL, 0, NULL, &eventMD5KernelSecond, "MD5_50Kernel");
-        CLFinish(queue);
-    }
-    
-    //unsigned int * hashes = malloc(hashesDataSize);
-    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, hashesDataSize, hashes, 1, &eventMD5KernelSecond, NULL);
-    
-    for (int i = 0; i < 3; i++) {
-        printHash(i, &hashes[i * 4]);
-    }
-    printf("\n");
-    
-    size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
-    printStatsKernel(eventInitKernel, numberOfWords, initDataSize, "initKernel");
-    
-    size_t md5DataSize = sizeof(numberOfWords) + wordsHalfDataSize + hashesDataSize;
-    printStatsKernel(eventMD5KernelFirst, numberOfWords, md5DataSize, "MD5_firstKernel");
-    
-    printStatsKernel(eventMD5KernelSecond, numberOfWords, md5DataSize, "MD5_SecondKernel");
-    
-    CLReleaseMemObject(charset_d, "charset_d");
-    CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
-    CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
-    CLReleaseMemObject(hashes_d, "hashes_d");
-    
-    free(hashes);
-    
-    return EXIT_SUCCESS;
-}
