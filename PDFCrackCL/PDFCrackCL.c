@@ -1,6 +1,6 @@
 //
 //  main.c
-//  OpenCL
+//  PDFCrackCL
 //
 //  Created by Alberto Ottimo on 21/12/14.
 //
