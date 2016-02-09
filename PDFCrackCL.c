@@ -18,6 +18,8 @@
 
 #include "CLPrint.h"
 
+#include "pdfparser.h"
+
 #define BUFFER_SIZE (16 * 1024)
 #define N 8
 
@@ -39,10 +41,46 @@ void printHash(unsigned int i, unsigned int * hash)
 
 int main(int argc, const char * argv[]) {
     
+    
+    FILE *file;
+    EncData *e;
+    e = malloc(sizeof(EncData));
+    int ret;
+    //char inputfile[128] = "/Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf";
+    if((file = fopen("/Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf", "rb")) == 0) {
+        fprintf(stderr,"Error: file not found\n");
+        return -1;
+    }
+    
+    
+    if(!openPDF(file, e)) {
+        fprintf(stderr, "Error: Not a valid PDF\n");
+        return -2;
+    }
+
+    ret = getEncryptedInfo(file, e);
+    if(ret) {
+        if(ret == EENCNF)
+            fprintf(stderr, "Error: Could not extract encryption information\n");
+        else if(ret == ETRANF || ret == ETRENF || ret == ETRINF) {
+            fprintf(stderr, "Error: Encryption not detected (is the document password protected?)\n");
+            return -3;
+        }
+    } else if(e->revision < 2 || (strcmp(e->s_handler,"Standard") != 0 || e->revision > 5)) {
+        fprintf(stderr, "The specific version is not supported (%s - %d)\n", e->s_handler, e->revision);
+        return -5;
+    }
+    
+    printEncData(e);
+
+    if(fclose(file)) {
+        fprintf(stderr, "Error: closing file \n");
+    }
+
     int platformIndex = -1;
     int deviceIndex = -1;
     char buffer[BUFFER_SIZE];
-    
+
     cl_platform_id platform = NULL;
     cl_device_id device;
     
