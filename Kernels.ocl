@@ -320,7 +320,8 @@ __kernel void RC4(uint numberOfWords, __constant char * key, const size_t keyLen
     };
     uint i;
     uchar k, j, tmp;
-    uchar * out = malloc(wordLength * sizeof(uchar));
+    //uchar * out = malloc(wordLength * sizeof(uchar));
+    uchar out[256];
 
     //KSA: Key-Scheduling Algorithm
     j = 0;
