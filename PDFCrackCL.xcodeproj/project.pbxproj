@@ -1,0 +1,282 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F387860D1C6A3A73009314E0 /* CLManager.c in Sources */ = {isa = PBXBuildFile; fileRef = F38786021C6A3A73009314E0 /* CLManager.c */; };
+		F387860E1C6A3A73009314E0 /* CLPrint.c in Sources */ = {isa = PBXBuildFile; fileRef = F38786041C6A3A73009314E0 /* CLPrint.c */; };
+		F387860F1C6A3A73009314E0 /* common.c in Sources */ = {isa = PBXBuildFile; fileRef = F38786061C6A3A73009314E0 /* common.c */; };
+		F38786111C6A3A73009314E0 /* PDFCrackCL.c in Sources */ = {isa = PBXBuildFile; fileRef = F387860A1C6A3A73009314E0 /* PDFCrackCL.c */; };
+		F38786121C6A3A73009314E0 /* pdfparser.c in Sources */ = {isa = PBXBuildFile; fileRef = F387860B1C6A3A73009314E0 /* pdfparser.c */; };
+		F38786131C6A3A7A009314E0 /* Kernels.ocl in CopyFiles */ = {isa = PBXBuildFile; fileRef = F38786081C6A3A73009314E0 /* Kernels.ocl */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F38785E41C6A39DA009314E0 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 12;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				F38786131C6A3A7A009314E0 /* Kernels.ocl in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		F38785E61C6A39DA009314E0 /* PDFCrackCL */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PDFCrackCL; sourceTree = BUILT_PRODUCTS_DIR; };
+		F38786021C6A3A73009314E0 /* CLManager.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = CLManager.c; sourceTree = "<group>"; };
+		F38786031C6A3A73009314E0 /* CLManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLManager.h; sourceTree = "<group>"; };
+		F38786041C6A3A73009314E0 /* CLPrint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = CLPrint.c; sourceTree = "<group>"; };
+		F38786051C6A3A73009314E0 /* CLPrint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLPrint.h; sourceTree = "<group>"; };
+		F38786061C6A3A73009314E0 /* common.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = common.c; sourceTree = "<group>"; };
+		F38786071C6A3A73009314E0 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
+		F38786081C6A3A73009314E0 /* Kernels.ocl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Kernels.ocl; sourceTree = "<group>"; };
+		F38786091C6A3A73009314E0 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = PDFCrackCL/Makefile; sourceTree = "<group>"; };
+		F387860A1C6A3A73009314E0 /* PDFCrackCL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = PDFCrackCL.c; sourceTree = "<group>"; };
+		F387860B1C6A3A73009314E0 /* pdfparser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = pdfparser.c; sourceTree = "<group>"; };
+		F387860C1C6A3A73009314E0 /* pdfparser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pdfparser.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F38785E31C6A39DA009314E0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F38785DD1C6A39DA009314E0 = {
+			isa = PBXGroup;
+			children = (
+				F38785E81C6A39DA009314E0 /* PDFCrackCL */,
+				F38786141C6A3B00009314E0 /* Other */,
+				F38785E71C6A39DA009314E0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F38785E71C6A39DA009314E0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F38785E61C6A39DA009314E0 /* PDFCrackCL */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F38785E81C6A39DA009314E0 /* PDFCrackCL */ = {
+			isa = PBXGroup;
+			children = (
+				F387860A1C6A3A73009314E0 /* PDFCrackCL.c */,
+				F38786031C6A3A73009314E0 /* CLManager.h */,
+				F38786021C6A3A73009314E0 /* CLManager.c */,
+				F38786051C6A3A73009314E0 /* CLPrint.h */,
+				F38786041C6A3A73009314E0 /* CLPrint.c */,
+				F38786071C6A3A73009314E0 /* common.h */,
+				F38786061C6A3A73009314E0 /* common.c */,
+				F387860C1C6A3A73009314E0 /* pdfparser.h */,
+				F387860B1C6A3A73009314E0 /* pdfparser.c */,
+				F38786081C6A3A73009314E0 /* Kernels.ocl */,
+			);
+			path = PDFCrackCL;
+			sourceTree = "<group>";
+		};
+		F38786141C6A3B00009314E0 /* Other */ = {
+			isa = PBXGroup;
+			children = (
+				F38786091C6A3A73009314E0 /* Makefile */,
+			);
+			name = Other;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F38785E51C6A39DA009314E0 /* PDFCrackCL */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F38785ED1C6A39DA009314E0 /* Build configuration list for PBXNativeTarget "PDFCrackCL" */;
+			buildPhases = (
+				F38785E21C6A39DA009314E0 /* Sources */,
+				F38785E31C6A39DA009314E0 /* Frameworks */,
+				F38785E41C6A39DA009314E0 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PDFCrackCL;
+			productName = PDFCrackCL;
+			productReference = F38785E61C6A39DA009314E0 /* PDFCrackCL */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F38785DE1C6A39DA009314E0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0720;
+				ORGANIZATIONNAME = Albertomac;
+				TargetAttributes = {
+					F38785E51C6A39DA009314E0 = {
+						CreatedOnToolsVersion = 7.2;
+					};
+				};
+			};
+			buildConfigurationList = F38785E11C6A39DA009314E0 /* Build configuration list for PBXProject "PDFCrackCL" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = F38785DD1C6A39DA009314E0;
+			productRefGroup = F38785E71C6A39DA009314E0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F38785E51C6A39DA009314E0 /* PDFCrackCL */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F38785E21C6A39DA009314E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F38786111C6A3A73009314E0 /* PDFCrackCL.c in Sources */,
+				F38786121C6A3A73009314E0 /* pdfparser.c in Sources */,
+				F387860F1C6A3A73009314E0 /* common.c in Sources */,
+				F387860E1C6A3A73009314E0 /* CLPrint.c in Sources */,
+				F387860D1C6A3A73009314E0 /* CLManager.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F38785EB1C6A39DA009314E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		F38785EC1C6A39DA009314E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		F38785EE1C6A39DA009314E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		F38785EF1C6A39DA009314E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F38785E11C6A39DA009314E0 /* Build configuration list for PBXProject "PDFCrackCL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F38785EB1C6A39DA009314E0 /* Debug */,
+				F38785EC1C6A39DA009314E0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F38785ED1C6A39DA009314E0 /* Build configuration list for PBXNativeTarget "PDFCrackCL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F38785EE1C6A39DA009314E0 /* Debug */,
+				F38785EF1C6A39DA009314E0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F38785DE1C6A39DA009314E0 /* Project object */;
+}
