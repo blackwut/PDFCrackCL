@@ -37,6 +37,7 @@
 struct EncData {
   char *s_handler;
   uint8_t *o_string;
+  unsigned int o_length;
   uint8_t *u_string;
   uint8_t *fileID;
   bool encryptMetaData;

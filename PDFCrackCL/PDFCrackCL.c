@@ -132,27 +132,44 @@ int main(int argc, const char * argv[]) {
     unsigned char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
     unsigned int charsetLength = 36;
     
-    unsigned char O[32] = {
-        0xB2, 0x19, 0x27, 0x81, 0x73, 0xB6, 0xE7, 0x88,
-        0x8E, 0x1C, 0x17, 0xA2, 0x86, 0x31, 0xDD, 0x23,
-        0x42, 0x0C, 0x94, 0xD5, 0x93, 0xC8, 0x83, 0xCA,
-        0x44, 0xCA, 0xE5, 0x02, 0xDD, 0xF2, 0xE3, 0x74
-    };
-
+//    unsigned char O[32] = {
+//        0xB2, 0x19, 0x27, 0x81, 0x73, 0xB6, 0xE7, 0x88,
+//        0x8E, 0x1C, 0x17, 0xA2, 0x86, 0x31, 0xDD, 0x23,
+//        0x42, 0x0C, 0x94, 0xD5, 0x93, 0xC8, 0x83, 0xCA,
+//        0x44, 0xCA, 0xE5, 0x02, 0xDD, 0xF2, 0xE3, 0x74
+//    };
+    
     unsigned char P[4] = {
         0xC0, 0xF0, 0xFF, 0xFF
     };
 
-    unsigned char fileID[16] = {
-        0xD7, 0xB1, 0x1C, 0xA0, 0x47, 0xEB, 0x61, 0x71,
-        0xE6, 0xE8, 0xFE, 0x8A, 0x64, 0xB0, 0x4C, 0xFA
-    };
+//    unsigned char fileID[16] = {
+//        0xD7, 0xB1, 0x1C, 0xA0, 0x47, 0xEB, 0x61, 0x71,
+//        0xE6, 0xE8, 0xFE, 0x8A, 0x64, 0xB0, 0x4C, 0xFA
+//    };
+    
+    unsigned char otherPad[52];
+    unsigned int i;
+    for (i = 0; i < 32; ++i) {
+        otherPad[i] = e->o_string[i];
+    }
+    
+    otherPad[32] = e->permissions & 0xff;
+    otherPad[33] = (e->permissions >> 8) & 0xff;
+    otherPad[34] = (e->permissions >> 16) & 0xff;
+    otherPad[35] = (e->permissions >> 24) & 0xff;
+    
+    for (i = 0; i < (32 + 4 + 16); ++i) {
+        otherPad[i] = e->fileID[i];
+    }
 
     
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
-    cl_mem O_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(O), O, "O_d");
-    cl_mem P_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(P), P, "P_d");
-    cl_mem fileID_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(fileID), fileID, "fileID_d");
+    cl_mem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, 52, otherPad, "otherPad_d");
+
+//    cl_mem O_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, e->o_length, e->o_string, "O_d");
+//    cl_mem P_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(P), P, "P_d");
+//    cl_mem fileID_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, e->fileIDLen, e->fileID, "fileID_d");
     cl_mem wordsHalfOne_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfOne_d");
     cl_mem wordsHalfTwo_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfTwo_d");
     cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "hashes_d");
@@ -172,15 +189,22 @@ int main(int argc, const char * argv[]) {
 
     
     //Init Words
+//    CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+//    CLSetKernelArg(kernelInitWords, 1, sizeof(charset_d), &charset_d, "charset_d");
+//    CLSetKernelArg(kernelInitWords, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
+//    CLSetKernelArg(kernelInitWords, 3, sizeof(O_d), &O_d, "O_d");
+//    CLSetKernelArg(kernelInitWords, 4, sizeof(P_d), &P_d, "P_d");
+//    CLSetKernelArg(kernelInitWords, 5, sizeof(fileID_d), &fileID_d, "fileID_d");
+//    CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
+//    CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
+//    CLSetKernelArg(kernelInitWords, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
     CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelInitWords, 1, sizeof(charset_d), &charset_d, "charset_d");
     CLSetKernelArg(kernelInitWords, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
-    CLSetKernelArg(kernelInitWords, 3, sizeof(O_d), &O_d, "O_d");
-    CLSetKernelArg(kernelInitWords, 4, sizeof(P_d), &P_d, "P_d");
-    CLSetKernelArg(kernelInitWords, 5, sizeof(fileID_d), &fileID_d, "fileID_d");
-    CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
-    CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-    CLSetKernelArg(kernelInitWords, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
+    CLSetKernelArg(kernelInitWords, 3, sizeof(otherPad_d), &otherPad_d, "otherPad_d");
+    CLSetKernelArg(kernelInitWords, 4, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
+    CLSetKernelArg(kernelInitWords, 5, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
+    CLSetKernelArg(kernelInitWords, 6, sizeof(hashes_d), &hashes_d, "hashes_d");
 
     lws = CLGetPreferredWorkGroupSizeMultiple(kernelInitWords, device, "kernelInitWords");
     CLEnqueueNDRangeKernel(queue, kernelInitWords, NULL, &gws, &lws, 0, NULL, &eventInitWords, "kernelInitWords");
@@ -235,9 +259,10 @@ int main(int argc, const char * argv[]) {
     printStatsKernel(eventMD5_50, numberOfWords, md5_50DataSize, "MD5_50Kernel");
     
     CLReleaseMemObject(charset_d, "charset_d");
-    CLReleaseMemObject(O_d, "O_d");
-    CLReleaseMemObject(P_d, "P_d");
-    CLReleaseMemObject(fileID_d, "fileID_d");
+    CLReleaseMemObject(otherPad_d, "otherPad_d");
+//    CLReleaseMemObject(O_d, "O_d");
+//    CLReleaseMemObject(P_d, "P_d");
+//    CLReleaseMemObject(fileID_d, "fileID_d");
     CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
     CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
     CLReleaseMemObject(hashes_d, "hashes_d");

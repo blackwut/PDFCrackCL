@@ -36,7 +36,7 @@
 		F38786051C6A3A73009314E0 /* CLPrint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLPrint.h; sourceTree = "<group>"; };
 		F38786061C6A3A73009314E0 /* common.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = common.c; sourceTree = "<group>"; };
 		F38786071C6A3A73009314E0 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
-		F38786081C6A3A73009314E0 /* Kernels.ocl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Kernels.ocl; sourceTree = "<group>"; };
+		F38786081C6A3A73009314E0 /* Kernels.ocl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = Kernels.ocl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
 		F38786091C6A3A73009314E0 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = PDFCrackCL/Makefile; sourceTree = "<group>"; };
 		F387860A1C6A3A73009314E0 /* PDFCrackCL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = PDFCrackCL.c; sourceTree = "<group>"; };
 		F387860B1C6A3A73009314E0 /* pdfparser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = pdfparser.c; sourceTree = "<group>"; };
@@ -275,6 +275,7 @@
 				F38785EF1C6A39DA009314E0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

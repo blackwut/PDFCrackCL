@@ -658,6 +658,7 @@ parseEncrypObject(FILE *file, EncData *e) {
 	if(!str)
 	  break;
 	e->o_string = str->content;
+    e->o_length = str->len;
 	o_len = str->len;
 	free(str);
 	fo = true;

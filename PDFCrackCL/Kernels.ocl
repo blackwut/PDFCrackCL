@@ -241,7 +241,8 @@ __constant const uchar pad[32] = {
 //#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : disable
 
 __kernel void initWords(uint numberOfWords, __constant uchar * restrict charset, uint charsetLength,
-                        __constant uchar * restrict O, __constant uchar * restrict P, __constant uchar * restrict fileID,
+                        //__constant uchar * restrict O, __constant uchar * restrict P, __constant uchar * restrict fileID,
+                        __constant uchar * restrict otherPad,
                         __global uint16 * restrict wordsHalfOne, __global uint16 * restrict wordsHalfTwo, __global uint4 * restrict hashes)
 {
     uint id = get_global_id(0);
@@ -267,16 +268,20 @@ __kernel void initWords(uint numberOfWords, __constant uchar * restrict charset,
         word[wordLength] = pad[i];
     }
     
-    for (i = 0; i < 32; ++i) {
-        word[32 + i] = O[i];
-    }
+//    for (i = 0; i < 32; ++i) {
+//        word[32 + i] = O[i];
+//    }
+//    
+//    for (i = 0; i < 4; ++i) {
+//        word[64 + i] = P[i];
+//    }
+//    
+//    for (i = 0; i < 16; ++i) {
+//        word[68 + i] = fileID[i];
+//    }
     
-    for (i = 0; i < 4; ++i) {
-        word[64 + i] = P[i];
-    }
-    
-    for (i = 0; i < 16; ++i) {
-        word[68 + i] = fileID[i];
+    for (i = 0; i < 52; ++i) {
+        word[32 + i] = otherPad[i];
     }
     
     word[84] = 0x80;
