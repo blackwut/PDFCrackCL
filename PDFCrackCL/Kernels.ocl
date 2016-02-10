@@ -238,7 +238,6 @@ __constant const uchar pad[32] = {
 //    0xE6, 0xE8, 0xFE, 0x8A, 0x64, 0xB0, 0x4C, 0xFA
 //};
 
-//#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : disable
 
 __kernel void initWords(uint numberOfWords, __constant uchar * restrict charset, uint charsetLength,
                         //__constant uchar * restrict O, __constant uchar * restrict P, __constant uchar * restrict fileID,
@@ -255,7 +254,7 @@ __kernel void initWords(uint numberOfWords, __constant uchar * restrict charset,
     uint wordLength = 0;
     uint16 wordInt[2] = {0};
     uchar * word = (uchar *)(wordInt);
-    
+
     while (n != 0 && wordLength < 32) {
         nPrev = n;
         n = n / charsetLength;
@@ -287,6 +286,20 @@ __kernel void initWords(uint numberOfWords, __constant uchar * restrict charset,
     word[84] = 0x80;
     word[120] = (uchar)(84 << 3);
     word[121] = (uchar)(84 >> 5);
+    
+    if (id == 203617) {
+        
+        printf("charset: ");
+        for (i = 0; i < charsetLength; ++i) {
+            printf("%c = %d", charset[i], charset[i]);
+        }
+        printf("\n");
+
+        for (i = 0; i < 128; ++i){
+            printf("%02X", word[i]);
+        }
+        printf("\n");
+    }
     
     wordsHalfOne[id] = wordInt[0];
     barrier(CLK_GLOBAL_MEM_FENCE);

@@ -82,7 +82,7 @@ int main(int argc, const char * argv[]) {
     char buffer[BUFFER_SIZE];
 
     cl_platform_id platform = NULL;
-    cl_device_id device;
+    cl_device_id device = NULL;
     
     //Parameter #1: platform
     if (argc > 1) {
@@ -126,7 +126,7 @@ int main(int argc, const char * argv[]) {
     cl_command_queue queue = CLCreateQueue(context, device);
     cl_program program = CLCreateProgram(context, device, "Kernels.ocl");
     
-    unsigned int numberOfWords = 1024 * 1024;
+    unsigned int numberOfWords = 36 * 36 * 36 * 36;
     size_t wordsHalfDataSize = sizeof(unsigned int) * 16 * numberOfWords;
     size_t hashesDataSize = sizeof(unsigned int) * 4 * numberOfWords;
     unsigned char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -139,9 +139,9 @@ int main(int argc, const char * argv[]) {
 //        0x44, 0xCA, 0xE5, 0x02, 0xDD, 0xF2, 0xE3, 0x74
 //    };
     
-    unsigned char P[4] = {
-        0xC0, 0xF0, 0xFF, 0xFF
-    };
+//    unsigned char P[4] = {
+//        0xC0, 0xF0, 0xFF, 0xFF
+//    };
 
 //    unsigned char fileID[16] = {
 //        0xD7, 0xB1, 0x1C, 0xA0, 0x47, 0xEB, 0x61, 0x71,
@@ -159,13 +159,13 @@ int main(int argc, const char * argv[]) {
     otherPad[34] = (e->permissions >> 16) & 0xff;
     otherPad[35] = (e->permissions >> 24) & 0xff;
     
-    for (i = 0; i < (32 + 4 + 16); ++i) {
-        otherPad[i] = e->fileID[i];
+    for (i = 0; i < (32 + 4 + e->fileIDLen); ++i) {
+        otherPad[i + 32 + 4] = e->fileID[i];
     }
 
     
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
-    cl_mem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, 52, otherPad, "otherPad_d");
+    cl_mem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(otherPad), otherPad, "otherPad_d");
 
 //    cl_mem O_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, e->o_length, e->o_string, "O_d");
 //    cl_mem P_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(P), P, "P_d");
