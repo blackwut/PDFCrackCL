@@ -291,7 +291,7 @@ __kernel void initWords(uint numberOfWords, __constant uchar * restrict charset,
         
         printf("charset: ");
         for (i = 0; i < charsetLength; ++i) {
-            printf("%c = %d", charset[i], charset[i]);
+            printf("%c = %d\n", charset[i], charset[i]);
         }
         printf("\n");
 

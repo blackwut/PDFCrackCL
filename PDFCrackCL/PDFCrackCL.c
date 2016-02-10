@@ -131,22 +131,7 @@ int main(int argc, const char * argv[]) {
     size_t hashesDataSize = sizeof(unsigned int) * 4 * numberOfWords;
     unsigned char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
     unsigned int charsetLength = 36;
-    
-//    unsigned char O[32] = {
-//        0xB2, 0x19, 0x27, 0x81, 0x73, 0xB6, 0xE7, 0x88,
-//        0x8E, 0x1C, 0x17, 0xA2, 0x86, 0x31, 0xDD, 0x23,
-//        0x42, 0x0C, 0x94, 0xD5, 0x93, 0xC8, 0x83, 0xCA,
-//        0x44, 0xCA, 0xE5, 0x02, 0xDD, 0xF2, 0xE3, 0x74
-//    };
-    
-//    unsigned char P[4] = {
-//        0xC0, 0xF0, 0xFF, 0xFF
-//    };
 
-//    unsigned char fileID[16] = {
-//        0xD7, 0xB1, 0x1C, 0xA0, 0x47, 0xEB, 0x61, 0x71,
-//        0xE6, 0xE8, 0xFE, 0x8A, 0x64, 0xB0, 0x4C, 0xFA
-//    };
     
     unsigned char otherPad[52];
     unsigned int i;
@@ -159,17 +144,12 @@ int main(int argc, const char * argv[]) {
     otherPad[34] = (e->permissions >> 16) & 0xff;
     otherPad[35] = (e->permissions >> 24) & 0xff;
     
-    for (i = 0; i < (32 + 4 + e->fileIDLen); ++i) {
+    for (i = 0; i < e->fileIDLen; ++i) {
         otherPad[i + 32 + 4] = e->fileID[i];
     }
-
     
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
     cl_mem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(otherPad), otherPad, "otherPad_d");
-
-//    cl_mem O_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, e->o_length, e->o_string, "O_d");
-//    cl_mem P_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(P), P, "P_d");
-//    cl_mem fileID_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, e->fileIDLen, e->fileID, "fileID_d");
     cl_mem wordsHalfOne_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfOne_d");
     cl_mem wordsHalfTwo_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfTwo_d");
     cl_mem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "hashes_d");
