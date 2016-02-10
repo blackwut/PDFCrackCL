@@ -162,22 +162,13 @@ int main(int argc, const char * argv[]) {
     cl_event eventMD5First;
     cl_event eventMD5Second;
     cl_event eventMD5_50;
+    cl_event eventRC4;
     
     cl_kernel kernelInitWords = CLCreateKernel(program, "initWords");
     cl_kernel kernelMD5 = CLCreateKernel(program, "MD5");
     cl_kernel kernelMD5_50 = CLCreateKernel(program, "MD5_50");
+    cl_kernel kernelRC4 = CLCreateKernel(program, "RC4");
 
-    
-    //Init Words
-//    CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-//    CLSetKernelArg(kernelInitWords, 1, sizeof(charset_d), &charset_d, "charset_d");
-//    CLSetKernelArg(kernelInitWords, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
-//    CLSetKernelArg(kernelInitWords, 3, sizeof(O_d), &O_d, "O_d");
-//    CLSetKernelArg(kernelInitWords, 4, sizeof(P_d), &P_d, "P_d");
-//    CLSetKernelArg(kernelInitWords, 5, sizeof(fileID_d), &fileID_d, "fileID_d");
-//    CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
-//    CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-//    CLSetKernelArg(kernelInitWords, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
     CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelInitWords, 1, sizeof(charset_d), &charset_d, "charset_d");
     CLSetKernelArg(kernelInitWords, 2, sizeof(charsetLength), &charsetLength, "charsetLength");
@@ -226,7 +217,23 @@ int main(int argc, const char * argv[]) {
     }
     printf("\n");
     
+    //RC4
+    char iteration = 19;
+    cl_mem test_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, 16, e->u_string, "test_d");
     
+    CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "num");
+    CLSetKernelArg(kernelRC4, 1, sizeof(hashes_d), &hashes_d, "keys_d");
+    CLSetKernelArg(kernelRC4, 2, sizeof(test_d), &test_d, "test_d");
+    CLSetKernelArg(kernelRC4, 3, sizeof(test_d), &test_d, "heshes_d");
+    CLSetKernelArg(kernelRC4, 4, sizeof(iteration), &iteration, "iteration");
+
+    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventMD5_50, &eventRC4, "kernelRC4");
+    
+    for (char i = 18; i >= 0; --i) {
+        CLSetKernelArg(kernelRC4, 4, sizeof(i), &i, "iteration");
+        CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4, &eventRC4, "kernelRC4");
+    }
+    CLFinish(queue);
     
     size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
     printStatsKernel(eventInitWords, numberOfWords, initDataSize, "initKernel");
@@ -238,11 +245,11 @@ int main(int argc, const char * argv[]) {
     size_t md5_50DataSize = sizeof(numberOfWords) + numberOfWords * 16 * sizeof(unsigned int);
     printStatsKernel(eventMD5_50, numberOfWords, md5_50DataSize, "MD5_50Kernel");
     
+    size_t rc4DataSize = sizeof(numberOfWords) + sizeof(e->u_string) + numberOfWords * 4 * sizeof(unsigned int) * 2;
+    printStatsKernel(eventRC4, numberOfWords, rc4DataSize, "RC4");
+    
     CLReleaseMemObject(charset_d, "charset_d");
     CLReleaseMemObject(otherPad_d, "otherPad_d");
-//    CLReleaseMemObject(O_d, "O_d");
-//    CLReleaseMemObject(P_d, "P_d");
-//    CLReleaseMemObject(fileID_d, "fileID_d");
     CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
     CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
     CLReleaseMemObject(hashes_d, "hashes_d");
@@ -253,33 +260,4 @@ int main(int argc, const char * argv[]) {
 }
 
 
-//    //RC4
-//    cl_event eventRC4Kernel;
-//    cl_kernel rc4Kernel = CLCreateKernel(program, "RC4");
-//    unsigned int num = 1024 * 64;
-//    char key[3] = "key";
-//    size_t keyLen = (size_t)3;
-//    char * msg = "porcodioporcodioporcodioporcodio";
-//    unsigned int * msgLen = malloc(num * sizeof(unsigned int));
-//    for (int i = 0; i < num; ++i) {
-//        msgLen[i] = 32;
-//    }
-//    cl_mem key_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 3, key, "key_d");
-//    cl_mem msg_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(char) * 32, msg, "msg_d");
-//    cl_mem msgLen_d = CLCreateBufferHostVar(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * num, msgLen, "msgLen_d");
-//    cl_mem hash_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, 4 * sizeof(unsigned int), "hash_d");
-//
-//    CLSetKernelArg(rc4Kernel, 0, sizeof(num), &num, "num");
-//    CLSetKernelArg(rc4Kernel, 1, sizeof(key_d), &key_d, "key_d");
-//    CLSetKernelArg(rc4Kernel, 2, sizeof(keyLen), &keyLen, "keyLen");
-//    CLSetKernelArg(rc4Kernel, 3, sizeof(msg_d), &msg_d, "msg_d");
-//    CLSetKernelArg(rc4Kernel, 4, sizeof(msgLen_d), &msgLen_d, "msgLen_d");
-//    CLSetKernelArg(rc4Kernel, 5, sizeof(hash_d), &hash_d, "hash");
-//
-//
-//    size_t gwsRC4 = num;
-//    CLEnqueueNDRangeKernel(queue, rc4Kernel, NULL, &gwsRC4, NULL, 0, NULL, &eventRC4Kernel, "rc4Kernel");
-//    CLFinish(queue);
-//
-//    printStatsKernel(eventRC4Kernel, gwsRC4, gwsRC4 * sizeof(char) * 32 * 2, "rc4Kernel");
 
