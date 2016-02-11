@@ -210,14 +210,14 @@ int main(int argc, const char * argv[]) {
         CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5_50, &eventMD5_50, "kernelMD5_50");
     }
     
-    unsigned int * hashes = malloc(hashesDataSize);
-    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, hashesDataSize, hashes, 1, &eventMD5_50, NULL);
-    
-    printf("after 50 times:\n");
-    for (int i = 0; i < 3; i++) {
-        printHash(i, &hashes[i * 4]);
-    }
-    printf("\n");
+//    unsigned int * hashes = malloc(hashesDataSize);
+//    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, hashesDataSize, hashes, 1, &eventMD5_50, NULL);
+//    
+//    printf("after 50 times:\n");
+//    for (int i = 0; i < 3; i++) {
+//        printHash(i, &hashes[i * 4]);
+//    }
+//    printf("\n");
     
     CLReleaseMemObject(charset_d, "charset_d");
     CLReleaseMemObject(otherPad_d, "otherPad_d");
@@ -234,6 +234,7 @@ int main(int argc, const char * argv[]) {
     CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
     
     
+    lws = CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
     CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelRC4, 1, sizeof(hashes_d), &hashes_d, "keys_d");
     CLSetKernelArg(kernelRC4, 2, sizeof(messages_d), &messages_d, "messages_d");
@@ -244,9 +245,9 @@ int main(int argc, const char * argv[]) {
     for (char i = 18; i >= 0; --i) {
         CLSetKernelArg(kernelRC4, 3, sizeof(i), &i, "iteration");
         CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4, &eventRC4, "kernelRC4");
+        CLFinish(queue);// Se commenti non funziona
     }
-    
-    cl_mem index_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * 2, "index_d");
+    cl_mem index_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int), "index_d");
     CLSetKernelArg(kernelCheckPassword, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelCheckPassword, 1, sizeof(messages_d), &messages_d, "hashes_d");
     CLSetKernelArg(kernelCheckPassword, 2, sizeof(index_d), &index_d, "index_d");
@@ -255,9 +256,9 @@ int main(int argc, const char * argv[]) {
     CLFinish(queue);
 
     
-    unsigned int index[2];
+    unsigned int index;
     clEnqueueReadBuffer(queue, index_d, CL_TRUE, 0, sizeof(unsigned int), &index, 1, &eventCheckPassword, NULL);
-    printf("index: %d", index[0]);
+    printf("index: %d", index);
     
     size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
     printStatsKernel(eventInitWords, numberOfWords, initDataSize, "initKernel");
@@ -272,13 +273,11 @@ int main(int argc, const char * argv[]) {
     size_t rc4DataSize = sizeof(numberOfWords) + sizeof(e->u_string) + numberOfWords * 4 * sizeof(unsigned int) * 2;
     printStatsKernel(eventRC4, numberOfWords, rc4DataSize, "RC4");
     
+    printTimeBetweenEvents(eventInitWords, eventCheckPassword, "Total Time");
 
     CLReleaseMemObject(hashes_d, "hashes_d");
     
-    free(hashes);
+    //free(hashes);
     
     return EXIT_SUCCESS;
 }
-
-
-

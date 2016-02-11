@@ -200,3 +200,17 @@ void printStatsKernel(cl_event event, size_t numberOfElements, size_t totalBytes
     
     printf("%s:\n Time: %0.3f ms\n Elements/Second: %zu\n Bandwidth: %0.3f GB/s\n\n", name, totalTimeMS, elementsPerSecond, bandwidth);
 }
+
+void printTimeBetweenEvents(cl_event start, cl_event finish, const char * name)
+{
+    cl_ulong timeStart, timeEnd;
+    double totalTimeNS, totalTimeMS;
+    
+    clGetEventProfilingInfo(start, CL_PROFILING_COMMAND_START, sizeof(timeStart), &timeStart, NULL);
+    clGetEventProfilingInfo(finish, CL_PROFILING_COMMAND_END, sizeof(timeEnd), &timeEnd, NULL);
+    
+    totalTimeNS = timeEnd-timeStart;
+    totalTimeMS = totalTimeNS / 1000000.0;
+    
+    printf("%s: %0.5f ms\n", name, totalTimeMS);
+}

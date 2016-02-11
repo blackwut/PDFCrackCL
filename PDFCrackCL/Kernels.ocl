@@ -333,12 +333,14 @@ __kernel void RC4(uint numberOfWords, __global char * keys, __global uchar * mes
     uchar out[16];
     uchar message[16];
     
+    uint localIndex = id * 16;
+    
     for (i = 0; i < 16; ++i) {
-        key[i] = keys[id * 16 + i] ^ iteration;
+        key[i] = keys[localIndex + i] ^ iteration;
     }
     
     for (i = 0; i < 16; ++i) {
-        message[i] = messages[id * 16 + i];
+        message[i] = messages[localIndex + i];
     }
     
     //KSA: Key-Scheduling Algorithm
@@ -371,26 +373,25 @@ __kernel void RC4(uint numberOfWords, __global char * keys, __global uchar * mes
         out[i] = message[i] ^ state[tmp];
     }
 
-    if (id == 1) {
-        printf("message: ");
-        for (i = 0; i < 16; ++i) {
-            printf("%02X", message[i]);
-        }
-        printf("\n");
-        
-        printf("KEY: ");
-        for (i = 0; i < 16; ++i) {
-            printf("%02X", key[i]);
-        }
-        printf("\n");
-        
-        printf("OUT: ");
-        for (i = 0; i < 16; ++i) {
-            printf("%02X", out[i]);
-        }
-        printf("\n");
-    }
-    
+//    if (id == 1) {
+//        printf("message: ");
+//        for (i = 0; i < 16; ++i) {
+//            printf("%02X", message[i]);
+//        }
+//        printf("\n");
+//        
+//        printf("KEY: ");
+//        for (i = 0; i < 16; ++i) {
+//            printf("%02X", key[i]);
+//        }
+//        printf("\n");
+//        
+//        printf("OUT: ");
+//        for (i = 0; i < 16; ++i) {
+//            printf("%02X", out[i]);
+//        }
+//        printf("\n");
+//    }
     uint4 * outUInt4 = (uint4 *)out;
     hashes[id] = *outUInt4;//valuesToUInt4(out);//(uint4)(outUInt[0], outUInt[1], outUInt[2], outUInt[3]);
 }
@@ -402,9 +403,9 @@ __kernel void checkPassword(unsigned int numberOfWords, __global uint4 * restric
     if (id >= numberOfWords)
         return;
     
-    if (id == 203617) {
-        printf("%08x %08x %08x %08x", hashes[id].x, hashes[id].y, hashes[id].z, hashes[id].w);
-    }
+//    if (id == 203617) {
+//        printf("%08x %08x %08x %08x", hashes[id].x, hashes[id].y, hashes[id].z, hashes[id].w);
+//    }
     
     if (hashes[id].x == test.x && hashes[id].y == test.y && hashes[id].z == test.z && hashes[id].w == test.w)
         index[0] = id;

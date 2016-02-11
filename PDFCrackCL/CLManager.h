@@ -31,3 +31,4 @@ void CLFinish(cl_command_queue queue);
 void CLReleaseMemObject(cl_mem var, const char * name);
 
 void printStatsKernel(cl_event event, size_t numberOfElements, size_t totalBytes, const char * name);
+void printTimeBetweenEvents(cl_event start, cl_event finish, const char * name);
