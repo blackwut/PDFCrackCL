@@ -52,7 +52,6 @@ int main(int argc, const char * argv[]) {
         return -1;
     }
     
-    
     if(!openPDF(file, e)) {
         fprintf(stderr, "Error: Not a valid PDF\n");
         return -2;
@@ -162,12 +161,15 @@ int main(int argc, const char * argv[]) {
     cl_event eventMD5First;
     cl_event eventMD5Second;
     cl_event eventMD5_50;
+    cl_event eventFillBufferRC4;
     cl_event eventRC4;
+    cl_event eventCheckPassword;
     
     cl_kernel kernelInitWords = CLCreateKernel(program, "initWords");
     cl_kernel kernelMD5 = CLCreateKernel(program, "MD5");
     cl_kernel kernelMD5_50 = CLCreateKernel(program, "MD5_50");
     cl_kernel kernelRC4 = CLCreateKernel(program, "RC4");
+    cl_kernel kernelCheckPassword = CLCreateKernel(program, "checkPassword");
 
     CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelInitWords, 1, sizeof(charset_d), &charset_d, "charset_d");
@@ -217,23 +219,45 @@ int main(int argc, const char * argv[]) {
     }
     printf("\n");
     
+    CLReleaseMemObject(charset_d, "charset_d");
+    CLReleaseMemObject(otherPad_d, "otherPad_d");
+    CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
+    CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
+    
     //RC4
     char iteration = 19;
-    cl_mem test_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, 16, e->u_string, "test_d");
+    //cl_mem test_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, 16, e->u_string, "test_d");
     
-    CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "num");
+    cl_mem messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
+    cl_int error;
+    error = clEnqueueFillBuffer(queue, messages_d, e->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50, &eventFillBufferRC4);
+    CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
+    
+    
+    CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelRC4, 1, sizeof(hashes_d), &hashes_d, "keys_d");
-    CLSetKernelArg(kernelRC4, 2, sizeof(test_d), &test_d, "test_d");
-    CLSetKernelArg(kernelRC4, 3, sizeof(test_d), &test_d, "heshes_d");
-    CLSetKernelArg(kernelRC4, 4, sizeof(iteration), &iteration, "iteration");
+    CLSetKernelArg(kernelRC4, 2, sizeof(messages_d), &messages_d, "messages_d");
+    CLSetKernelArg(kernelRC4, 3, sizeof(iteration), &iteration, "iteration");
 
-    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventMD5_50, &eventRC4, "kernelRC4");
-    
+    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventFillBufferRC4, &eventRC4, "kernelRC4");
+
     for (char i = 18; i >= 0; --i) {
-        CLSetKernelArg(kernelRC4, 4, sizeof(i), &i, "iteration");
+        CLSetKernelArg(kernelRC4, 3, sizeof(i), &i, "iteration");
         CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4, &eventRC4, "kernelRC4");
     }
+    
+    cl_mem index_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * 2, "index_d");
+    CLSetKernelArg(kernelCheckPassword, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
+    CLSetKernelArg(kernelCheckPassword, 1, sizeof(messages_d), &messages_d, "hashes_d");
+    CLSetKernelArg(kernelCheckPassword, 2, sizeof(index_d), &index_d, "index_d");
+
+    CLEnqueueNDRangeKernel(queue, kernelCheckPassword, NULL, &gws, &lws, 1, &eventRC4, &eventCheckPassword, "kernelCheckPassowrd");
     CLFinish(queue);
+
+    
+    unsigned int index[2];
+    clEnqueueReadBuffer(queue, index_d, CL_TRUE, 0, sizeof(unsigned int), &index, 1, &eventCheckPassword, NULL);
+    printf("index: %d", index[0]);
     
     size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
     printStatsKernel(eventInitWords, numberOfWords, initDataSize, "initKernel");
@@ -248,10 +272,7 @@ int main(int argc, const char * argv[]) {
     size_t rc4DataSize = sizeof(numberOfWords) + sizeof(e->u_string) + numberOfWords * 4 * sizeof(unsigned int) * 2;
     printStatsKernel(eventRC4, numberOfWords, rc4DataSize, "RC4");
     
-    CLReleaseMemObject(charset_d, "charset_d");
-    CLReleaseMemObject(otherPad_d, "otherPad_d");
-    CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
-    CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
+
     CLReleaseMemObject(hashes_d, "hashes_d");
     
     free(hashes);
