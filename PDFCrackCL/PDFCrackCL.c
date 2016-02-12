@@ -251,20 +251,19 @@ int main(int argc, const char * argv[]) {
     CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
     
     //RC4
-    char iteration = 19;
-    //cl_mem test_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, 16, e->u_string, "test_d");
-    
+    char iteration = 19;    
     cl_mem messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
     cl_int error;
     error = clEnqueueFillBuffer(queue, messages_d, e->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50, &eventFillBufferRC4);
     CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
     
     
-    lws = CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
+    lws = 16;//CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
     CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelRC4, 1, sizeof(hashes_d), &hashes_d, "keys_d");
     CLSetKernelArg(kernelRC4, 2, sizeof(messages_d), &messages_d, "messages_d");
     CLSetKernelArg(kernelRC4, 3, sizeof(iteration), &iteration, "iteration");
+    CLSetKernelArg(kernelRC4, 4, sizeof(unsigned char) * 512 * lws, NULL, "state");
 
     CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventFillBufferRC4, &eventRC4, "kernelRC4");
 

@@ -103,7 +103,7 @@ cl_program CLCreateProgram(cl_context context, cl_device_id device, const char *
     program = clCreateProgramWithSource(context, 1, &ptrBuff, NULL, &err);
     CLErrorCheck(err, "clCreateProgramWithSource", "create program", CHECK_EXIT);
     
-    err = clBuildProgram(program, 1, &device, "-I.", NULL, NULL);
+    err = clBuildProgram(program, 1, &device, "-cl-unsafe-math-optimizations -cl-fast-relaxed-math -cl-finite-math-only -cl-no-signed-zeros -I.", NULL, NULL);
     CLErrorCheck(err, "clBuildProgram", "build program", CHECK_NOT_EXIT);
     
     err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, BUFFER_SIZE, buffer, NULL);
