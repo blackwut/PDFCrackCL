@@ -8,8 +8,11 @@
 
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
+#define COMMON_DIGEST_FOR_OPENSSL
+#include <CommonCrypto/CommonDigest.h>
 #else
 #include <CL/cl.h>
+#include <openssl/md5.h>
 #endif
 
 #include <stdio.h>
@@ -26,6 +29,13 @@
 #define PUTCHAR(buf, index, val) (buf)[(index)>>2] = ((buf)[(index)>>2] & ~(0xffU << (((index) & 3) << 3))) + ((val) << (((index) & 3) << 3))
 #define GETCHAR(buf, index) (((unsigned char*)(buf))[(index)])
 
+unsigned char pad[32] = {
+    0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
+    0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
+    0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
+    0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A
+};
+
 void printHash(unsigned int i, unsigned int * hash)
 {
     printf("%d = ", i);
@@ -37,6 +47,29 @@ void printHash(unsigned int i, unsigned int * hash)
         printf("%02x", GETCHAR(hash, i));
     }
     printf("\n");
+}
+
+void printWord(unsigned int id, unsigned char * charset, unsigned int charsetLength) {
+    uint n = id;//203617; // = "bene"
+    uint x = 0;
+    uint wordLength = 0;
+    unsigned char word[33];
+    
+    while (n != 0 && wordLength < 32) {
+        x = n % charsetLength;
+        n = n / charsetLength;
+        word[wordLength++] = charset[x];
+    }
+    word[wordLength] = '\0';
+    printf("Word: %s\n", word);
+}
+
+void md5(unsigned char * string, unsigned int length, unsigned char digest[16])
+{
+    MD5_CTX context;
+    MD5_Init(&context);
+    MD5_Update(&context, string, length);
+    MD5_Final(digest, &context);
 }
 
 int main(int argc, const char * argv[]) {
@@ -75,6 +108,14 @@ int main(int argc, const char * argv[]) {
     if(fclose(file)) {
         fprintf(stderr, "Error: closing file \n");
     }
+    
+    
+    unsigned char digest[16];
+    unsigned char * buf;
+    buf = malloc(sizeof(uint8_t) * 64);
+    memcpy(buf, pad, 32);
+    memcpy(buf + 32, e->fileID, e->fileIDLen);
+    md5(buf, 32+e->fileIDLen, digest);    
 
     int platformIndex = -1;
     int deviceIndex = -1;
@@ -133,19 +174,13 @@ int main(int argc, const char * argv[]) {
 
     
     unsigned char otherPad[52];
-    unsigned int i;
-    for (i = 0; i < 32; ++i) {
-        otherPad[i] = e->o_string[i];
-    }
-    
+    memcpy(otherPad, e->o_string, e->o_length);
     otherPad[32] = e->permissions & 0xff;
     otherPad[33] = (e->permissions >> 8) & 0xff;
     otherPad[34] = (e->permissions >> 16) & 0xff;
     otherPad[35] = (e->permissions >> 24) & 0xff;
+    memcpy(otherPad + 36, e->fileID, e->fileIDLen);
     
-    for (i = 0; i < e->fileIDLen; ++i) {
-        otherPad[i + 32 + 4] = e->fileID[i];
-    }
     
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
     cl_mem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(otherPad), otherPad, "otherPad_d");
@@ -210,15 +245,6 @@ int main(int argc, const char * argv[]) {
         CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5_50, &eventMD5_50, "kernelMD5_50");
     }
     
-//    unsigned int * hashes = malloc(hashesDataSize);
-//    clEnqueueReadBuffer(queue, hashes_d, CL_TRUE, 0, hashesDataSize, hashes, 1, &eventMD5_50, NULL);
-//    
-//    printf("after 50 times:\n");
-//    for (int i = 0; i < 3; i++) {
-//        printHash(i, &hashes[i * 4]);
-//    }
-//    printf("\n");
-    
     CLReleaseMemObject(charset_d, "charset_d");
     CLReleaseMemObject(otherPad_d, "otherPad_d");
     CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
@@ -247,18 +273,18 @@ int main(int argc, const char * argv[]) {
         CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4, &eventRC4, "kernelRC4");
         CLFinish(queue);// Se commenti non funziona
     }
+    
+    
+    cl_mem test_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(unsigned char) * 16, digest, "test_d");
     cl_mem index_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int), "index_d");
     CLSetKernelArg(kernelCheckPassword, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelCheckPassword, 1, sizeof(messages_d), &messages_d, "hashes_d");
-    CLSetKernelArg(kernelCheckPassword, 2, sizeof(index_d), &index_d, "index_d");
+    CLSetKernelArg(kernelCheckPassword, 2, sizeof(test_d), &test_d, "test_d");
+    CLSetKernelArg(kernelCheckPassword, 3, sizeof(index_d), &index_d, "index_d");
 
     CLEnqueueNDRangeKernel(queue, kernelCheckPassword, NULL, &gws, &lws, 1, &eventRC4, &eventCheckPassword, "kernelCheckPassowrd");
     CLFinish(queue);
 
-    
-    unsigned int index;
-    clEnqueueReadBuffer(queue, index_d, CL_TRUE, 0, sizeof(unsigned int), &index, 1, &eventCheckPassword, NULL);
-    printf("index: %d", index);
     
     size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
     printStatsKernel(eventInitWords, numberOfWords, initDataSize, "initKernel");
@@ -275,9 +301,12 @@ int main(int argc, const char * argv[]) {
     
     printTimeBetweenEvents(eventInitWords, eventCheckPassword, "Total Time");
 
+    
+    unsigned int index;
+    clEnqueueReadBuffer(queue, index_d, CL_TRUE, 0, sizeof(unsigned int), &index, 0, NULL, NULL);
+    printWord(index, charset, charsetLength);
+    
     CLReleaseMemObject(hashes_d, "hashes_d");
-    
-    //free(hashes);
-    
+        
     return EXIT_SUCCESS;
 }
