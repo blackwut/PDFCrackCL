@@ -5,7 +5,7 @@
 #define DEBUG_initWords FALSE
 #define DEBUG_MD5 FALSE
 #define DEBUG_MD5_50 FALSE
-#define DEBUG_RC4 FALSE
+#define DEBUG_RC4 TRUE
 
 
 /* Macros for reading/writing chars from int32's (from rar_kernel.cl) */
@@ -329,7 +329,7 @@ __kernel void MD5_50(uint numberOfWords,
 }
 
 __kernel void RC4(uint numberOfWords,
-                  __global char * keys,
+                  __global uchar * keys,
                   __global uchar * messages,
                   uchar iteration) {
     
@@ -361,6 +361,7 @@ __kernel void RC4(uint numberOfWords,
     uint i;
     uchar k, j, tmp;
     uchar key[16];
+//    uint4 * keyUInt4 = (uint4 *)key;
     uchar out[16];
     uchar message[16];
     
@@ -369,6 +370,8 @@ __kernel void RC4(uint numberOfWords,
     for (i = 0; i < 16; ++i) {
         key[i] = keys[localIndex + i] ^ iteration;
     }
+    
+//    keyUInt4[0] = keys[id];
     
     for (i = 0; i < 16; ++i) {
         message[i] = messages[localIndex + i];
@@ -396,7 +399,6 @@ __kernel void RC4(uint numberOfWords,
         tmp = state[k];
         state[k] = state[j];
         state[j] = tmp;
-        
         
         //Index of state to avoid outbound array state
         tmp = state[j] + state[k];
@@ -472,11 +474,34 @@ __kernel void RC4Local(uint numberOfWords,
     
     uint localIndex = id * 16;
     
-    uint localId = get_local_id(0) * 256;
+    int localSize = get_local_size(0);
+
+    uint localId = get_local_id(0);
     
-    for (i = 0; i < 256; ++i) {
-        state[localId + i] = i;
+//    for (i = 0; i < 256; ++i) {
+//        state[localId + i] = i;
+//    }
+    
+
+    
+    if (id == 0) {
+        
+        for (int s = 0; s < 256; ++s) {
+            for (int l = 0; l < localSize; ++l) {
+                state[s * localSize + l] = (char)s;
+                
+//                printf("state[%d] = %d", s * localSize + l, s);
+            }
+        }
+//        for (int s = 0; s < 256; ++s) {
+//            for (int l = 0; l < localSize; ++l) {
+//                state[l * localSize + s] = (char)s;
+//            }
+////            state[s * localSize + localId] = (char)s;
+//        }
     }
+    
+    barrier(CLK_GLOBAL_MEM_FENCE);
     
     for (i = 0; i < 16; ++i) {
         key[i] = keys[localIndex + i] ^ iteration;
@@ -489,12 +514,12 @@ __kernel void RC4Local(uint numberOfWords,
     //KSA: Key-Scheduling Algorithm
     j = 0;
     for (i = 0; i < 256; ++i) {
-        j = j + state[localId + i] + key[i & 15]; //i & 15 = i % 16
+        j = j + state[(localId + i) * localSize] + key[i & 15]; //i & 15 = i % 16
         
         //Swap
-        tmp = state[localId + i];
-        state[localId + i] = state[localId + j];
-        state[localId + j] = tmp;
+        tmp = state[(localId + i) * localSize];
+        state[(localId + i) * localSize] = state[(localId + j) * localSize];
+        state[(localId + j) * localSize] = tmp;
     }
 
     //PRGA: Pseudo-Random Generation Algorithm
@@ -502,24 +527,24 @@ __kernel void RC4Local(uint numberOfWords,
     k = 0;
     for (i = 0; i < 16; ++i) {
         j = (j + 1);
-        k = (k + state[localId + j]);
+        k = (k + state[(localId + j) * localSize]);
         
         //Swap
-        tmp = state[localId + k];
-        state[localId + k] = state[localId + j];
-        state[localId + j] = tmp;
+        tmp = state[(localId + k) * localSize];
+        state[(localId + k) * localSize] = state[(localId + j) * localSize];
+        state[(localId + j) * localSize] = tmp;
         
 
         //Index of state to avoid outbound array state
-        tmp = state[localId + j] + state[localId + k];
+        tmp = state[(localId + j) * localSize] + state[(localId + k) * localSize];
         
-        out[i] = message[i] ^ state[localId + tmp];
+        out[i] = message[i] ^ state[(localId + tmp) * localSize];
     }
 
     hashes[id] = arrayToUInt4Value(out);
     
 #if DEBUG_RC4
-    if (id == 1) {
+    if (id == 2) {
         uint v;
         printf("DEBUG RC4:\n");
         

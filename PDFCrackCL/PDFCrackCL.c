@@ -203,7 +203,7 @@ int main(int argc, const char * argv[]) {
     cl_kernel kernelInitWords = CLCreateKernel(program, "initWords");
     cl_kernel kernelMD5 = CLCreateKernel(program, "MD5");
     cl_kernel kernelMD5_50 = CLCreateKernel(program, "MD5_50");
-    cl_kernel kernelRC4 = CLCreateKernel(program, "RC4");
+    cl_kernel kernelRC4 = CLCreateKernel(program, "RC4Local");
     cl_kernel kernelCheckPassword = CLCreateKernel(program, "checkPassword");
 
     CLSetKernelArg(kernelInitWords, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
@@ -258,12 +258,12 @@ int main(int argc, const char * argv[]) {
     CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
     
     
-    lws = CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
+    lws = 1;//CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
     CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelRC4, 1, sizeof(hashes_d), &hashes_d, "keys_d");
     CLSetKernelArg(kernelRC4, 2, sizeof(messages_d), &messages_d, "messages_d");
     CLSetKernelArg(kernelRC4, 3, sizeof(iteration), &iteration, "iteration");
-    //CLSetKernelArg(kernelRC4, 4, sizeof(unsigned char) * 512 * lws, NULL, "state");
+    CLSetKernelArg(kernelRC4, 4, sizeof(unsigned char) * 256 * lws, NULL, "state");
 
     CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventFillBufferRC4, &eventRC4, "kernelRC4");
 
