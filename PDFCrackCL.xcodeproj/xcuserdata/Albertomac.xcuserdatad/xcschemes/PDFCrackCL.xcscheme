@@ -63,7 +63,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "0"
+            argument = "-f /Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf -p 0"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

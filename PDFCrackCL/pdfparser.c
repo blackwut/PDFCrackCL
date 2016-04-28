@@ -63,33 +63,35 @@ isEndOfLine(const int ch) {
   return (ch == 0x0a || ch == 0x0d);
 }
 
-static int
-parseIntWithC(FILE *file, const int c) {
-  bool neg = false;
-  int i = 0;
-  int ch = c;
+static int parseIntWithC(FILE * file, const int c) {
+  
+    bool neg = false;
+    int i = 0;
+    int ch = c;
 
-  if(ch == '-') {
-    neg = true;
-    ch = getc(file);
-  }
-  else if(ch == '+')
-    ch = getc(file);
-  while(ch >= '0' && ch <= '9') {
-    i *= 10;
-    i += ch-'0';
-    ch = getc(file);
-  }
-  ungetc(ch,file);
-  if(neg)
-    i *= -1;
+    if(ch == '-') {
+        neg = true;
+        ch = getc(file);
+    } else if(ch == '+') {
+        ch = getc(file);
+    }
+  
+    while(ch >= '0' && ch <= '9') {
+        i *= 10;
+        i += ch-'0';
+        ch = getc(file);
+    }
 
-  return i;
+    ungetc(ch, file);
+    if(neg) {
+        i *= -1;
+    }
+    
+    return i;
 }
 
-static int
-parseInt(FILE *file) {
-  return parseIntWithC(file, getc(file));
+static int parseInt(FILE * file) {
+    return parseIntWithC(file, getc(file));
 }
 
 
@@ -162,24 +164,29 @@ isWord(FILE *file, const char *str) {
   return false;
 }
 
-bool
-openPDF(FILE *file, EncData *e) {
-  bool ret = false;
-  int minor_v = 0, major_v = 0;
-  if(getc(file) == '%' && getc(file) == 'P' && getc(file) == 'D' 
-     && getc(file) == 'F' && getc(file) == '-') {
-    major_v = parseInt(file);
-    if(getc(file) == '.')
-      minor_v = parseInt(file);
-    if(major_v >= 0)
-      ret = true;
-  }
-
-  if(ret) {
-    e->version_major = major_v;
-    e->version_minor = minor_v;
-  } 
-  return ret;
+bool openPDF(FILE * file, EncData * e) {
+ 
+    bool ret = false;
+    int minor_v = 0;
+    int major_v = 0;
+    
+    if(getc(file) == '%' && getc(file) == 'P' && getc(file) == 'D' && getc(file) == 'F' && getc(file) == '-') {
+        major_v = parseInt(file);
+   
+        if(getc(file) == '.') {
+            minor_v = parseInt(file);
+        }
+        
+        if(major_v >= 0) {
+            ret = true;
+        }
+    }
+    
+    if(ret) {
+        e->version_major = major_v;
+        e->version_minor = minor_v;
+    }
+    return ret;
 }
 
 __attribute__ ((pure)) static uint8_t
@@ -332,224 +339,222 @@ parseRegularString(FILE *file) {
 return ret;
 }
 
-static int
-findTrailerDict(FILE *file, EncData *e) {
-  int ch;
-  /**  int pos_i; */
-  bool encrypt = false;
-  bool id = false;
-  int e_pos = -1;
-  p_str *str = NULL;
-  int dict = 0;
-  
-  ch = getc(file);
-  while(ch != EOF) {
-    if(isEndOfLine(ch)) {
-      ch = parseWhiteSpace(file);
-      if(ch == '<' && getc(file) == '<') {
-	/** This should be the first dict we stumble upon*/
-
-	/**
-	   pos_i = ftell(file);
-	   printf("found Trailer at pos %x\n", pos_i);
-	*/
-	ch = getc(file);
-	while(ch != EOF) {
-	  if(ch == '<') {
-	    ch = getc(file);
-	    if(ch == '<') {
-	      dict++;
-	    }
-	  }
-	  if(ch == '>') {
-	    ch = getc(file);
-	    if(ch == '>') {
-	      if(dict == 0)
-		break;
-	    }
-	    dict--;
-	  }
-	  while(ch != '/' && ch != EOF) {
-	    ch = getc(file);
-	  }
-	  ch = getc(file);
-	  /**printf("found a name: %c\n", ch);*/
-	  if(e_pos < 0 && ch == 'E' && isWord(file, "ncrypt")) {
-	    e_pos = parseIntWithC(file,parseWhiteSpace(file));
-	    if(e_pos >= 0) {
-	      /**
-		 pos_i = ftell(file);
-		 printf("found Encrypt at pos %x, ", pos_i);
-		 printf("%d\n", e_pos);
-	      */
-	      encrypt = true;
-	    }
-	  }
-	  else if(ch == 'I' && getc(file) == 'D') {
-	    ch = parseWhiteSpace(file);
-	    while(ch != '[' && ch != EOF)
-	      ch = getc(file);
-
-	    if(str) {
-	      if(str->content)
-		free(str->content);
-	      free(str);
-	    }
-	      
-	    str = parseRegularString(file);
-	    /**
-	       pos_i = ftell(file);
-	       printf("found ID at pos %x\n", pos_i);
-	    */
-	    if(str)
-	      id = true;
-	    ch = getc(file);
-	  }
-	  else
-	    ch = getc(file);
-	  if(encrypt && id) {
-	    /**printf("found all, returning: epos: %d\n",e_pos);*/
-	    e->fileID = str->content;
-	    e->fileIDLen = str->len;
-	    free(str);
-	    return e_pos;
-	  }
-	}
-      }  
-      else {
-	ch = getc(file);
-      }     
+static int findTrailerDict(FILE *file, EncData *e) {
+    int ch;
+    /**  int pos_i; */
+    bool encrypt = false;
+    bool id = false;
+    int e_pos = -1;
+    p_str *str = NULL;
+    int dict = 0;
+    
+    ch = getc(file);
+    while(ch != EOF) {
+        if(isEndOfLine(ch)) {
+            ch = parseWhiteSpace(file);
+            if(ch == '<' && getc(file) == '<') {
+                /** This should be the first dict we stumble upon*/
+                
+                /**
+                 pos_i = ftell(file);
+                 printf("found Trailer at pos %x\n", pos_i);
+                 */
+                ch = getc(file);
+                while(ch != EOF) {
+                    if(ch == '<') {
+                        ch = getc(file);
+                        if(ch == '<') {
+                            dict++;
+                        }
+                    }
+                    if(ch == '>') {
+                        ch = getc(file);
+                        if(ch == '>') {
+                            if(dict == 0)
+                            break;
+                        }
+                        dict--;
+                    }
+                    while(ch != '/' && ch != EOF) {
+                        ch = getc(file);
+                    }
+                    ch = getc(file);
+                    /**printf("found a name: %c\n", ch);*/
+                    if(e_pos < 0 && ch == 'E' && isWord(file, "ncrypt")) {
+                        e_pos = parseIntWithC(file,parseWhiteSpace(file));
+                        if(e_pos >= 0) {
+                            /**
+                             pos_i = ftell(file);
+                             printf("found Encrypt at pos %x, ", pos_i);
+                             printf("%d\n", e_pos);
+                             */
+                            encrypt = true;
+                        }
+                    }
+                    else if(ch == 'I' && getc(file) == 'D') {
+                        ch = parseWhiteSpace(file);
+                        while(ch != '[' && ch != EOF)
+                        ch = getc(file);
+                        
+                        if(str) {
+                            if(str->content)
+                            free(str->content);
+                            free(str);
+                        }
+                        
+                        str = parseRegularString(file);
+                        /**
+                         pos_i = ftell(file);
+                         printf("found ID at pos %x\n", pos_i);
+                         */
+                        if(str)
+                        id = true;
+                        ch = getc(file);
+                    }
+                    else
+                    ch = getc(file);
+                    if(encrypt && id) {
+                        /**printf("found all, returning: epos: %d\n",e_pos);*/
+                        e->fileID = str->content;
+                        e->fileIDLen = str->len;
+                        free(str);
+                        return e_pos;
+                    }
+                }
+            }  
+            else {
+                ch = getc(file);
+            }     
+        }
+        else
+        ch = getc(file);
     }
-    else
-      ch = getc(file);
-  }
-  /**  printf("finished searching\n");*/
-  
-  if(str) {
-    if(str->content)
-      	free(str->content);
-    free(str);
-  }
-  
-  if(!encrypt && id)
+    /**  printf("finished searching\n");*/
+    
+    if(str) {
+        if(str->content)
+        free(str->content);
+        free(str);
+    }
+    
+    if(!encrypt && id)
     return ETRENF;
-  else if(!id && encrypt) {
-    /** We found a encrypt object, but not an ID. Let us try parsing the 
-	object as some security handlers seems to encrypt/skip the ID.
-	Logic changed to show these handles correctly instead of printing out
-	a error that the document is not encrypted.
-    **/
-    return e_pos;
-  }
-  else 
+    else if(!id && encrypt) {
+        /** We found a encrypt object, but not an ID. Let us try parsing the 
+         object as some security handlers seems to encrypt/skip the ID.
+         Logic changed to show these handles correctly instead of printing out
+         a error that the document is not encrypted.
+         **/
+        return e_pos;
+    }
+    else 
     return ETRANF;
 }
 
 
-static int
-findTrailer(FILE *file, EncData *e) {
-  int ch;
-  /**  int pos_i; */
-  bool encrypt = false;
-  bool id = false;
-  int e_pos = -1;
-  p_str *str = NULL;
-  
-  ch = getc(file);
-  while(ch != EOF) {
-    if(isEndOfLine(ch)) {
-      if(isWord(file, "trailer")) {
-	/**	printf("found trailer\n");*/
-	ch = parseWhiteSpace(file);
-	if(ch == '<' && getc(file) == '<') {
-	  /** we can be pretty sure to have found the trailer.
-	      start looking for the Encrypt-entry */
-
-	  /**
-	  pos_i = ftell(file);
-	  printf("found Trailer at pos %x\n", pos_i);
-	  */
-	  ch = getc(file);
-	  while(ch != EOF) {
-	    if(ch == '>') {
-	      ch = getc(file);
-	      if(ch == '>')
-		break;
-	    }
-	    while(ch != '/' && ch != EOF) {
-	      ch = getc(file);
-	    }
-	    ch = getc(file);
-	    /**printf("found a name: %c\n", ch);*/
-	    if(e_pos < 0 && ch == 'E' && isWord(file, "ncrypt")) {
-	      e_pos = parseIntWithC(file,parseWhiteSpace(file));
-	      if(e_pos >= 0) {
-		/**
-		   pos_i = ftell(file);
-		   printf("found Encrypt at pos %x, ", pos_i);
-		   printf("%d\n", e_pos);
-		*/
-		encrypt = true;
-	      }
-	    }
-	    else if(ch == 'I' && getc(file) == 'D') {
-	      ch = parseWhiteSpace(file);
-	      while(ch != '[' && ch != EOF)
-		ch = getc(file);
-
-	      if(str) {
-		if(str->content)
-		  free(str->content);
-		free(str);
-	      }
-
-	      str = parseRegularString(file);
-	      /**
-	      pos_i = ftell(file);
-	      printf("found ID at pos %x\n", pos_i);
-	      */
-	      if(str)
-		id = true;
-	      ch = getc(file);
-	    }
-	    else
-	      ch = getc(file);
-	    if(encrypt && id) {
-	      /**printf("found all, returning: epos: %d\n",e_pos);*/
-	      e->fileID = str->content;
-	      e->fileIDLen = str->len;
-	      free(str);
-	      return e_pos;
-	    }
-	  }
-	}  
-      }
-      else {
-	ch = getc(file);
-      }
+static int findTrailer(FILE * file, EncData * e) {
+    int ch;
+    /**  int pos_i; */
+    bool encrypt = false;
+    bool id = false;
+    int e_pos = -1;
+    p_str *str = NULL;
+    
+    ch = getc(file);
+    while(ch != EOF) {
+        if(isEndOfLine(ch)) {
+            if(isWord(file, "trailer")) {
+                /**	printf("found trailer\n");*/
+                ch = parseWhiteSpace(file);
+                if(ch == '<' && getc(file) == '<') {
+                    /** we can be pretty sure to have found the trailer.
+                     start looking for the Encrypt-entry */
+                    
+                    /**
+                     pos_i = ftell(file);
+                     printf("found Trailer at pos %x\n", pos_i);
+                     */
+                    ch = getc(file);
+                    while(ch != EOF) {
+                        if(ch == '>') {
+                            ch = getc(file);
+                            if(ch == '>')
+                            break;
+                        }
+                        while(ch != '/' && ch != EOF) {
+                            ch = getc(file);
+                        }
+                        ch = getc(file);
+                        /**printf("found a name: %c\n", ch);*/
+                        if(e_pos < 0 && ch == 'E' && isWord(file, "ncrypt")) {
+                            e_pos = parseIntWithC(file,parseWhiteSpace(file));
+                            if(e_pos >= 0) {
+                                /**
+                                 pos_i = ftell(file);
+                                 printf("found Encrypt at pos %x, ", pos_i);
+                                 printf("%d\n", e_pos);
+                                 */
+                                encrypt = true;
+                            }
+                        }
+                        else if(ch == 'I' && getc(file) == 'D') {
+                            ch = parseWhiteSpace(file);
+                            while(ch != '[' && ch != EOF)
+                            ch = getc(file);
+                            
+                            if(str) {
+                                if(str->content)
+                                free(str->content);
+                                free(str);
+                            }
+                            
+                            str = parseRegularString(file);
+                            /**
+                             pos_i = ftell(file);
+                             printf("found ID at pos %x\n", pos_i);
+                             */
+                            if(str)
+                            id = true;
+                            ch = getc(file);
+                        }
+                        else
+                        ch = getc(file);
+                        if(encrypt && id) {
+                            /**printf("found all, returning: epos: %d\n",e_pos);*/
+                            e->fileID = str->content;
+                            e->fileIDLen = str->len;
+                            free(str);
+                            return e_pos;
+                        }
+                    }
+                }  
+            }
+            else {
+                ch = getc(file);
+            }
+        }
+        else
+        ch = getc(file);
     }
-    else
-      ch = getc(file);
-  }
-  /**  printf("finished searching\n");*/
-
-  if(str) {
-    if(str->content)
-      	free(str->content);
-    free(str);
-  }
-
-  if(!encrypt && id)
-      return ETRENF;
-  else if(!id && encrypt) {
-    /** We found a encrypt object, but not an ID. Let us try parsing the 
-	object as some security handlers seems to encrypt/skip the ID.
-	Logic changed to show these handles correctly instead of printing out
-	a error that the document is not encrypted.
-    **/
-   return e_pos;
-  }
-  else 
+    /**  printf("finished searching\n");*/
+    
+    if(str) {
+        if(str->content)
+        free(str->content);
+        free(str);
+    }
+    
+    if(!encrypt && id)
+    return ETRENF;
+    else if(!id && encrypt) {
+        /** We found a encrypt object, but not an ID. Let us try parsing the 
+         object as some security handlers seems to encrypt/skip the ID.
+         Logic changed to show these handles correctly instead of printing out
+         a error that the document is not encrypted.
+         **/
+        return e_pos;
+    }
+    else 
     return ETRANF;
 }
 
@@ -758,58 +763,63 @@ parseEncrypObject(FILE *file, EncData *e) {
     This is not a really definitive search.
     Should be replaced with something better
 */
-static bool
-findEncryptObject(FILE *file, const int e_pos, EncData *e) {
-  int ch;
-
-  /** only find the encrypt object if e_pos > -1 */
-  if(e_pos < 0)
+static bool findEncryptObject(FILE *file, const int e_pos, EncData *e) {
+    int ch;
+    
+    /** only find the encrypt object if e_pos > -1 */
+    if(e_pos < 0)
     return false;
-
-  ch = getc(file);
-  while(ch != EOF) {
-    if(isEndOfLine(ch)) {
-      if(parseInt(file) == e_pos) {
-	ch = parseWhiteSpace(file);
-	if(ch >= '0' && ch <= '9') {
-	  ch = parseWhiteSpace(file);
-	  if(ch == 'o' && getc(file) == 'b' && getc(file) == 'j' &&
-	     parseWhiteSpace(file) == '<' && getc(file) == '<') {
-	    return parseEncrypObject(file, e);
-	  }
-	}
-      }
-    }
+    
     ch = getc(file);
-  }
-  return false;
+    while(ch != EOF) {
+        if(isEndOfLine(ch)) {
+            if(parseInt(file) == e_pos) {
+                ch = parseWhiteSpace(file);
+                if(ch >= '0' && ch <= '9') {
+                    ch = parseWhiteSpace(file);
+                    if(ch == 'o' && getc(file) == 'b' && getc(file) == 'j' &&
+                       parseWhiteSpace(file) == '<' && getc(file) == '<') {
+                        return parseEncrypObject(file, e);
+                    }
+                }
+            }
+        }
+        ch = getc(file);
+    }
+    return false;
 }
 
 
-int
-getEncryptedInfo(FILE *file, EncData *e) {
-  int e_pos = -1;
-  bool ret;
+int getEncryptedInfo(FILE * file, EncData * e) {
+  
+    int e_pos = -1;
+    bool ret;
 
   /* Start checking if the block is in the end of the file */
-  if(fseek(file, -1024, SEEK_END))
-    e_pos = findTrailer(file, e);
-  if(e_pos < 0) {
-    rewind(file);
-    e_pos = findTrailer(file, e);
-  }
-  if(e_pos < 0) {
-    rewind(file);
-    e_pos = findTrailerDict(file, e);	
-  }
+    if (fseek(file, -1024, SEEK_END)) {
+        e_pos = findTrailer(file, e);
+    }
+    
+    if(e_pos < 0) {
+        rewind(file);
+        e_pos = findTrailer(file, e);
+    }
+    
+    if(e_pos < 0) {
+        rewind(file);
+        e_pos = findTrailerDict(file, e);
+    }
 
-  if(e_pos < 0) {
-    return e_pos;
-  }
-  rewind(file);
-  ret = findEncryptObject(file, e_pos, e);
-  if(!ret)
-    return EENCNF;
-
-  return 0;
+    if(e_pos < 0) {
+        return e_pos;
+    }
+  
+    rewind(file);
+    ret = findEncryptObject(file, e_pos, e);
+    
+    if(!ret) {
+        return EENCNF;
+    }
+    
+    return 0;
 }

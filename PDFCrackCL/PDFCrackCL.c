@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #include "CLPrint.h"
 
@@ -49,10 +51,11 @@ void printHash(unsigned int i, unsigned int * hash)
     printf("\n");
 }
 
-void printWord(unsigned int id, unsigned char * charset, unsigned int charsetLength) {
-    uint n = id;//203617; // = "bene"
-    uint x = 0;
-    uint wordLength = 0;
+void printWord(unsigned int id, unsigned char * charset, unsigned int charsetLength)
+{
+    unsigned int n = id;//203617; // = "bene"
+    unsigned int x = 0;
+    unsigned int wordLength = 0;
     unsigned char word[33];
     
     while (n != 0 && wordLength < 32) {
@@ -72,70 +75,143 @@ void md5(unsigned char * string, unsigned int length, unsigned char digest[16])
     MD5_Final(digest, &context);
 }
 
-int main(int argc, const char * argv[]) {
+void loadDataFromPDFAtPath(const char * path, EncData * data) {
     
+    FILE * file;
     
-    FILE *file;
-    EncData *e;
-    e = malloc(sizeof(EncData));
-    int ret;
-    //char inputfile[128] = "/Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf";
-    if((file = fopen("/Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf", "rb")) == 0) {
+    if((file = fopen(path, "rb")) == 0) {
         fprintf(stderr,"Error: file not found\n");
-        return -1;
+        exit(-1);
     }
     
-    if(!openPDF(file, e)) {
+    if(!openPDF(file, data)) {
         fprintf(stderr, "Error: Not a valid PDF\n");
-        return -2;
-    }
-
-    ret = getEncryptedInfo(file, e);
-    if(ret) {
-        if(ret == EENCNF)
-            fprintf(stderr, "Error: Could not extract encryption information\n");
-        else if(ret == ETRANF || ret == ETRENF || ret == ETRINF) {
-            fprintf(stderr, "Error: Encryption not detected (is the document password protected?)\n");
-            return -3;
-        }
-    } else if(e->revision < 2 || (strcmp(e->s_handler,"Standard") != 0 || e->revision > 5)) {
-        fprintf(stderr, "The specific version is not supported (%s - %d)\n", e->s_handler, e->revision);
-        return -5;
+        exit(-2);
     }
     
-    printEncData(e);
-
+    int ret = getEncryptedInfo(file, data);
+    if(ret) {
+        if(ret == EENCNF) {
+            fprintf(stderr, "Error: Could not extract encryption information\n");
+        } else if(ret == ETRANF || ret == ETRENF || ret == ETRINF) {
+            fprintf(stderr, "Error: Encryption not detected (is the document password protected?)\n");
+            exit(-3);
+        }
+    } else if(data->revision < 2 || (strcmp(data->s_handler,"Standard") != 0 || data->revision > 5)) {
+        fprintf(stderr, "The specific version is not supported (%s - %d)\n", data->s_handler, data->revision);
+        exit(-4);
+    }
+    
     if(fclose(file)) {
         fprintf(stderr, "Error: closing file \n");
+        exit(-5);
+    }
+}
+
+static void printHelp(char * program) {
+    printf("Usage: %s -f filename [OPTIONS]\n"
+           "\t-f, --filename filename\n"
+           "\t-p, --platform\tnumber of platform\n"
+           "\t-d, --device\tnumber of device\n"
+           , program);
+}
+
+static struct option long_options[] = {
+    {"filename", required_argument, 0, 'f'},
+    {"platform", optional_argument, 0, 'p'},
+    {"device",   optional_argument, 0, 'd'},
+    {0, 0, 0, 0}
+};
+
+int main(int argc, char ** argv) {
+    
+    char path[BUFFER_SIZE] = {'\0'};// = "/Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf";
+    int platformIndex = -1;
+    int deviceIndex = -1;
+    char buffer[BUFFER_SIZE];
+    
+    cl_platform_id platform = NULL;
+    cl_device_id device = NULL;
+    
+    
+    //TODO: Sistemare meglio la situazione
+    while (true) {
+        
+        int c;
+        int option_index = 0;
+        
+        c = getopt_long(argc, argv, "f:p:d:", long_options, &option_index);
+        
+        printf("c: %d\n", c);
+        printf("option_index: %d\n", option_index);
+        
+        if (c == -1){
+            break;
+        }
+        
+        switch (c) {
+               
+            case 0:
+            case '?':
+                printHelp(argv[0]);
+                break;
+                
+            case 'f':
+                if (path[0] == '\0') {
+                    
+                    if (access(optarg, F_OK) != -1) {
+                        strcpy(path, optarg);
+                    } else {
+                        exit(1);
+                    }
+                }
+                break;
+            case 'p':
+                if (platformIndex == -1) {
+                    platformIndex = atoi(optarg);
+                    if ((platform = CLSelectPlatform(platformIndex)) == NULL) {
+                        exit(2);
+                    }
+                }
+                break;
+            case 'd':
+                if (deviceIndex == -1) {
+                    deviceIndex = atoi(optarg);
+                    if ((device = CLSelectDevice(platform, deviceIndex)) == NULL) {
+                        exit(3);
+                    }
+                }
+                break;
+            default:
+                printHelp(argv[0]);
+                exit(0);
+        }
     }
     
+    if (optind < argc) {
+        printf ("non-option ARGV-elements: ");
+        while (optind < argc)
+            printf ("%s ", argv[optind++]);
+        putchar ('\n');
+    }
+
+    if (path[0] == '\0') {
+        printHelp(argv[0]);
+        exit(1);
+    }
+
+    
+    EncData * data;
+    data = malloc(sizeof(EncData));
+    loadDataFromPDFAtPath(path, data);
+    printEncData(data);
     
     unsigned char digest[16];
     unsigned char * buf;
     buf = malloc(sizeof(uint8_t) * 64);
     memcpy(buf, pad, 32);
-    memcpy(buf + 32, e->fileID, e->fileIDLen);
-    md5(buf, 32+e->fileIDLen, digest);    
-
-    int platformIndex = -1;
-    int deviceIndex = -1;
-    char buffer[BUFFER_SIZE];
-
-    cl_platform_id platform = NULL;
-    cl_device_id device = NULL;
-    
-    //Parameter #1: platform
-    if (argc > 1) {
-        platformIndex = atoi(argv[1]);
-        if ((platform = CLSelectPlatform(platformIndex)) == NULL)
-            platformIndex = -1;
-    }
-    //Parameter #2: device
-    if (argc > 2) {
-        deviceIndex = atoi(argv[2]);
-        if ((device = CLSelectDevice(platform, deviceIndex)) == NULL)
-            deviceIndex = -1;
-    }
+    memcpy(buf + 32, data->fileID, data->fileIDLen);
+    md5(buf, 32+data->fileIDLen, digest);
     
     //If user not select platform
     if (platformIndex == -1) {
@@ -172,14 +248,14 @@ int main(int argc, const char * argv[]) {
     unsigned char charset[36] = "abcdefghijklmnopqrstuvwxyz0123456789";
     unsigned int charsetLength = 36;
 
-    
+
     unsigned char otherPad[52];
-    memcpy(otherPad, e->o_string, e->o_length);
-    otherPad[32] = e->permissions & 0xff;
-    otherPad[33] = (e->permissions >> 8) & 0xff;
-    otherPad[34] = (e->permissions >> 16) & 0xff;
-    otherPad[35] = (e->permissions >> 24) & 0xff;
-    memcpy(otherPad + 36, e->fileID, e->fileIDLen);
+    memcpy(otherPad, data->o_string, data->o_length);
+    otherPad[32] = data->permissions & 0xff;
+    otherPad[33] = (data->permissions >> 8) & 0xff;
+    otherPad[34] = (data->permissions >> 16) & 0xff;
+    otherPad[35] = (data->permissions >> 24) & 0xff;
+    memcpy(otherPad + 36, data->fileID, data->fileIDLen);
     
     
     cl_mem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
@@ -195,9 +271,9 @@ int main(int argc, const char * argv[]) {
     cl_event eventInitWords;
     cl_event eventMD5First;
     cl_event eventMD5Second;
-    cl_event eventMD5_50;
+    cl_event eventMD5_50[50];
     cl_event eventFillBufferRC4;
-    cl_event eventRC4;
+    cl_event eventRC4[20];
     cl_event eventCheckPassword;
     
     cl_kernel kernelInitWords = CLCreateKernel(program, "initWords");
@@ -217,6 +293,10 @@ int main(int argc, const char * argv[]) {
     lws = CLGetPreferredWorkGroupSizeMultiple(kernelInitWords, device, "kernelInitWords");
     CLEnqueueNDRangeKernel(queue, kernelInitWords, NULL, &gws, &lws, 0, NULL, &eventInitWords, "kernelInitWords");
 
+    CLReleaseMemObject(charset_d, "charset_d");
+    CLReleaseMemObject(otherPad_d, "otherPad_d");
+
+    
     //MD5 First
     CLSetKernelArg(kernelMD5, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelMD5, 1, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
@@ -225,13 +305,12 @@ int main(int argc, const char * argv[]) {
     lws = CLGetPreferredWorkGroupSizeMultiple(kernelMD5, device, "kernelMD5_First/Second");
     CLEnqueueNDRangeKernel(queue, kernelMD5, NULL, &gws, &lws, 1, &eventInitWords, &eventMD5First, "kernelMD5_First");
     
-    
+
     //MD5 Second
     //CLSetKernelArg(kernelMD5, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelMD5, 1, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
     //CLSetKernelArg(kernelMD5, 2, sizeof(hashes_d), &hashes_d, "hashes_d");
     CLEnqueueNDRangeKernel(queue, kernelMD5, NULL, &gws, &lws, 1, &eventMD5First, &eventMD5Second, "kernelMD5_Second");
-
     
     
     //MD5_50
@@ -239,14 +318,12 @@ int main(int argc, const char * argv[]) {
     CLSetKernelArg(kernelMD5_50, 1, sizeof(hashes_d), &hashes_d, "hashes_d");
     
     lws = CLGetPreferredWorkGroupSizeMultiple(kernelMD5_50, device, "kernelMD5_50");
-    CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5Second, &eventMD5_50, "kernelMD5_50");
+    CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5Second, eventMD5_50, "kernelMD5_50");
 
     for (unsigned int i = 1; i < 50; ++i) {
-        CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5_50, &eventMD5_50, "kernelMD5_50");
+        CLEnqueueNDRangeKernel(queue, kernelMD5_50, NULL, &gws, &lws, 1, &eventMD5_50[i - 1], &eventMD5_50[i], "kernelMD5_50");
     }
-    
-    CLReleaseMemObject(charset_d, "charset_d");
-    CLReleaseMemObject(otherPad_d, "otherPad_d");
+
     CLReleaseMemObject(wordsHalfOne_d, "wordsHalfOne_d");
     CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
     
@@ -254,23 +331,22 @@ int main(int argc, const char * argv[]) {
     char iteration = 19;    
     cl_mem messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
     cl_int error;
-    error = clEnqueueFillBuffer(queue, messages_d, e->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50, &eventFillBufferRC4);
+    error = clEnqueueFillBuffer(queue, messages_d, data->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50[49], &eventFillBufferRC4);
     CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
     
     
-    lws = 1;//CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
+    lws = CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
     CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
     CLSetKernelArg(kernelRC4, 1, sizeof(hashes_d), &hashes_d, "keys_d");
     CLSetKernelArg(kernelRC4, 2, sizeof(messages_d), &messages_d, "messages_d");
     CLSetKernelArg(kernelRC4, 3, sizeof(iteration), &iteration, "iteration");
     CLSetKernelArg(kernelRC4, 4, sizeof(unsigned char) * 256 * lws, NULL, "state");
 
-    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventFillBufferRC4, &eventRC4, "kernelRC4");
+    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventFillBufferRC4, &eventRC4[19], "kernelRC4");
 
     for (char i = 18; i >= 0; --i) {
         CLSetKernelArg(kernelRC4, 3, sizeof(i), &i, "iteration");
-        CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4, &eventRC4, "kernelRC4");
-        CLFinish(queue);// Se commenti non funziona
+        CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4[i+1], &eventRC4[i], "kernelRC4");
     }
     
     
@@ -281,9 +357,9 @@ int main(int argc, const char * argv[]) {
     CLSetKernelArg(kernelCheckPassword, 2, sizeof(test_d), &test_d, "test_d");
     CLSetKernelArg(kernelCheckPassword, 3, sizeof(index_d), &index_d, "index_d");
 
-    CLEnqueueNDRangeKernel(queue, kernelCheckPassword, NULL, &gws, &lws, 1, &eventRC4, &eventCheckPassword, "kernelCheckPassowrd");
+    CLEnqueueNDRangeKernel(queue, kernelCheckPassword, NULL, &gws, &lws, 1, eventRC4, &eventCheckPassword, "kernelCheckPassowrd");
     CLFinish(queue);
-
+    
     
     size_t initDataSize = sizeof(numberOfWords) + sizeof(charset) + sizeof(charsetLength) + wordsHalfDataSize * 2 + hashesDataSize;
     printStatsKernel(eventInitWords, numberOfWords, initDataSize, "initKernel");
@@ -293,10 +369,10 @@ int main(int argc, const char * argv[]) {
     printStatsKernel(eventMD5Second, numberOfWords, md5DataSize, "MD5_SecondKernel");
     
     size_t md5_50DataSize = sizeof(numberOfWords) + numberOfWords * 16 * sizeof(unsigned int);
-    printStatsKernel(eventMD5_50, numberOfWords, md5_50DataSize, "MD5_50Kernel");
+    printStatsKernel(eventMD5_50[49], numberOfWords, md5_50DataSize, "MD5_50Kernel");
     
-    size_t rc4DataSize = sizeof(numberOfWords) + sizeof(e->u_string) + numberOfWords * 4 * sizeof(unsigned int) * 2;
-    printStatsKernel(eventRC4, numberOfWords, rc4DataSize, "RC4");
+    size_t rc4DataSize = sizeof(numberOfWords) + sizeof(data->u_string) + numberOfWords * 4 * sizeof(unsigned int) * 2;
+    printStatsKernel(eventRC4[0], numberOfWords, rc4DataSize, "RC4");
     
     printTimeBetweenEvents(eventInitWords, eventCheckPassword, "Total Time");
 
@@ -305,7 +381,10 @@ int main(int argc, const char * argv[]) {
     clEnqueueReadBuffer(queue, index_d, CL_TRUE, 0, sizeof(unsigned int), &index, 0, NULL, NULL);
     printWord(index, charset, charsetLength);
     
+    CLReleaseMemObject(messages_d, "messages_d");
     CLReleaseMemObject(hashes_d, "hashes_d");
+    CLReleaseMemObject(test_d, "test_d");
+    CLReleaseMemObject(index_d, "index_d");
         
     return EXIT_SUCCESS;
 }
