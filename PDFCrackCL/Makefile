@@ -9,5 +9,5 @@ endif
 PDFCrackCL:
 	$(CC) $(LDLIBS) $(CFLAGS) *.c -o PDFCrackCL
 
-clean
+clean:
 	rm PDFCrackCL

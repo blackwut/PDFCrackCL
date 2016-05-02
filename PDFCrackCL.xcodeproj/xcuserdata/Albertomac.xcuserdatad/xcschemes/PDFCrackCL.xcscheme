@@ -64,7 +64,15 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "-f /Volumes/RamDisk/pdfchallenge/pdfprotected_weak.pdf -p 0"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-f /Volumes/RamDisk/pdfchallenge/pdfprotected_medium.pdf -p 0"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-f /Volumes/RamDisk/porcodio.pdf -p 0"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>

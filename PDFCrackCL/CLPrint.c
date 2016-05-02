@@ -16,16 +16,16 @@ void CLPrintPlatformInfo(cl_platform_id platformID)
     size_t nBuffer;
     char *charBuffer;
     
-    const int nInfos = 5;
+    const int nInfo = 5;
     char *infoNames[]= {"Profile", "Platform Name", "Vendor", "Version", "Extensions"};
-    cl_platform_info infos[] = {CL_PLATFORM_PROFILE, CL_PLATFORM_NAME, CL_PLATFORM_VENDOR, CL_PLATFORM_VERSION, CL_PLATFORM_EXTENSIONS};
+    cl_platform_info info[] = {CL_PLATFORM_PROFILE, CL_PLATFORM_NAME, CL_PLATFORM_VENDOR, CL_PLATFORM_VERSION, CL_PLATFORM_EXTENSIONS};
     
     printf("Platforms:\n");
-    for (int i = 0; i < nInfos; ++i) {
-        err = clGetPlatformInfo(platformID, infos[i], 0, NULL, &nBuffer);
+    for (int i = 0; i < nInfo; ++i) {
+        err = clGetPlatformInfo(platformID, info[i], 0, NULL, &nBuffer);
         CLErrorCheck(err, "clGetPlatformInfo", "get nBuffer", CHECK_EXIT);
         charBuffer = calloc(nBuffer, sizeof(charBuffer));
-        err = clGetPlatformInfo(platformID, infos[i], nBuffer, charBuffer, NULL);
+        err = clGetPlatformInfo(platformID, info[i], nBuffer, charBuffer, NULL);
         CLErrorCheck(err, "clGetPlatformInfo", "get platform info", CHECK_EXIT);
         printf("%s: %s\n", infoNames[i], charBuffer);
     }
@@ -63,29 +63,29 @@ void CLPrintDeviceInfo(cl_device_id deviceID)
     cl_ulong ulongBuffer;
     
     
-    int charNInfos = 3;
+    int charNInfo = 3;
     char *charInfoNames[] = {"Vendor", "Name", "OpenCL Ver."};
-    cl_device_info charInfos[] = {CL_DEVICE_VENDOR, CL_DEVICE_NAME, CL_DEVICE_VERSION};
+    cl_device_info charInfo[] = {CL_DEVICE_VENDOR, CL_DEVICE_NAME, CL_DEVICE_VERSION};
     
-    int ulongNInfos = 5;
+    int ulongNInfo = 5;
     char *ulongInfoNames[] = {"Frequency", "Global Memroy", "Global Memory Cache", "Global Memory CacheLine", "Local Memory", "Max Compute Units"};
-    cl_device_info ulongInfos[] = {CL_DEVICE_MAX_CLOCK_FREQUENCY, CL_DEVICE_GLOBAL_MEM_SIZE, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE, CL_DEVICE_LOCAL_MEM_SIZE, CL_DEVICE_MAX_COMPUTE_UNITS};
+    cl_device_info ulongInfo[] = {CL_DEVICE_MAX_CLOCK_FREQUENCY, CL_DEVICE_GLOBAL_MEM_SIZE, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE, CL_DEVICE_LOCAL_MEM_SIZE, CL_DEVICE_MAX_COMPUTE_UNITS};
     
-    printf("Devices Infos\n");
-    for (int i = 0; i < charNInfos; ++i) {
-        err = clGetDeviceInfo(deviceID, charInfos[i], 0, NULL, &nBuffer);
+    printf("Devices Info\n");
+    for (int i = 0; i < charNInfo; ++i) {
+        err = clGetDeviceInfo(deviceID, charInfo[i], 0, NULL, &nBuffer);
         CLErrorCheck(err, "clGetDeviceInfo", "get nBuffer", CHECK_EXIT);
         
         charBuffer = calloc(nBuffer, sizeof(charBuffer));
         
-        err = clGetDeviceInfo(deviceID, charInfos[i], nBuffer, charBuffer, NULL);
+        err = clGetDeviceInfo(deviceID, charInfo[i], nBuffer, charBuffer, NULL);
         CLErrorCheck(err, "clGetDeviceInfo", "get device info", CHECK_EXIT);
         printf("%s: %s\n", charInfoNames[i], charBuffer);
     }
     
     
-    for (int i = 0; i < ulongNInfos; ++i) {
-        err = clGetDeviceInfo(deviceID, ulongInfos[i], sizeof(ulongBuffer), &ulongBuffer, NULL);
+    for (int i = 0; i < ulongNInfo; ++i) {
+        err = clGetDeviceInfo(deviceID, ulongInfo[i], sizeof(ulongBuffer), &ulongBuffer, NULL);
         CLErrorCheck(err, "clGetDeviceInfo", "get device info", CHECK_EXIT);
         printf("%s: %llu\n", ulongInfoNames[i], ulongBuffer);
     }

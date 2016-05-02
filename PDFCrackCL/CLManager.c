@@ -182,6 +182,11 @@ void CLReleaseMemObject(cl_mem var, const char * name)
     CLErrorCheck(error, "clReleaseMemObject", name, CHECK_NOT_EXIT);
 }
 
+void CLReleaseEvent(cl_event event)
+{
+    clReleaseEvent(event);
+}
+
 void printStatsKernel(cl_event event, size_t numberOfElements, size_t totalBytes, const char * name)
 {
     cl_ulong timeStart, timeEnd;
