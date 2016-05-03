@@ -14,7 +14,7 @@
 
 #include "CLManager.h"
 
-void CLPrintPlatformInfo(cl_platform_id platformID);
+void CLPrintPlatformInfo(CLPlatform platformID);
 void CLPrintPlatforms();
-void CLPrintDeviceInfo(cl_device_id deviceID);
-void CLPrintDevices(cl_platform_id platform);
+void CLPrintDeviceInfo(CLDevice deviceID);
+void CLPrintDevices(CLPlatform platform);

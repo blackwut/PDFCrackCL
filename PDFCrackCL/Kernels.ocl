@@ -5,7 +5,7 @@
 #define DEBUG_initWords TRUE
 #define DEBUG_MD5 FALSE
 #define DEBUG_MD5_50 FALSE
-#define DEBUG_RC4 TRUE
+#define DEBUG_RC4 FALSE
 
 
 /* Macros for reading/writing chars from int32's (from rar_kernel.cl) */
@@ -111,44 +111,48 @@ __kernel void initWords(uint numberOfWords,
 #endif
 }
 
-__kernel void initWordsOffset(__constant uchar * offsetString,
-                              uint offsetLenght,
-                              unsigned long long numberOfWords,
-                              __constant uchar * restrict charset,
-                              uint charsetLength,
-                              __constant uchar * restrict otherPad,
-                              __global uint16 * restrict wordsHalfOne,
-                              __global uint16 * restrict wordsHalfTwo,
-                              __global uint4 * restrict hashes)
+__kernel void initWordsWithOffset(__constant uchar * offsetString,
+                                  uint offsetLenght,
+                                  unsigned long long numberOfWords,
+                                  __constant uchar * restrict charset,
+                                  uint charsetLength,
+                                  __constant uchar * restrict otherPad,
+                                  __global uint16 * restrict wordsHalfOne,
+                                  __global uint16 * restrict wordsHalfTwo,
+                                  __global uint4 * restrict hashes)
 {
-    uint id = get_global_id(0);
+    unsigned long id = get_global_id(0);
     if (id >= numberOfWords)
         return;
     
-    uint n = id;//203617; // = "bene"
-    uint nPrev;
-    uint x = 0;
+    //Declaring word length
     uint wordLength = offsetLenght;
+    
+    //Declaring word
     uint16 wordInt[2] = {0};
     uchar * word = (uchar *)(wordInt);
     
+    //Coping offsetString into word
     for (uint i = 0; i < offsetLenght; ++i) {
         word[i] = offsetString[i];
     }
     
-    while (n != 0 && wordLength < 32) {
-        nPrev = n;
-        n = n / charsetLength;
-        x = nPrev - (n * charsetLength);
-        word[wordLength++] = charset[x];
-    }
+    uint remainder = 0;
+    uint quoto = id;
+    uint quotoPrev;
     
-    uint i;
-    for (i = 0; wordLength < 32; ++wordLength, ++i) {
+    do {
+        quotoPrev = quoto;
+        quoto /= charsetLength;
+        remainder = quotoPrev - (quoto * charsetLength);
+        word[wordLength++] = charset[remainder];
+    } while (quoto-- != 0 && wordLength < 32);
+    
+    for (uint i = 0; wordLength < 32; ++wordLength, ++i) {
         word[wordLength] = pad[i];
     }
     
-    for (i = 0; i < 52; ++i) {
+    for (uint i = 0; i < 52; ++i) {
         word[32 + i] = otherPad[i];
     }
     
@@ -156,40 +160,10 @@ __kernel void initWordsOffset(__constant uchar * offsetString,
     word[120] = (uchar)(84 << 3);
     word[121] = (uchar)(84 >> 5);
     
-    
     wordsHalfOne[id] = wordInt[0];
     barrier(CLK_GLOBAL_MEM_FENCE);
     wordsHalfTwo[id] = wordInt[1];
     hashes[id] = (uint4)(0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476);
-    
-#if DEBUG_initWords
-    if (id == 1) {
-        uint v;
-        printf("DEBUG initWords:\n");
-        
-        printf("OffsetString: %s\n", offsetString);
-        printf("OffsetLenght: %d\n", offsetLenght);
-        
-        printf("Charset: ");
-        for (v = 0; v < charsetLength; ++v) {
-            printf("%c", charset[v]);
-        }
-        printf("\n");
-        
-        printf("Word: ");
-        for (v = 0; v < 128; ++v) {
-            printf("%02X", word[v]);
-        }
-        printf("\n");
-        
-        printf("hashes[1]: ");
-        printf("%08X ", hashes[id].x);
-        printf("%08X ", hashes[id].y);
-        printf("%08X ", hashes[id].z);
-        printf("%08X", hashes[id].w);
-        printf("\n\n");
-    }
-#endif
 }
 
 __kernel void MD5(uint numberOfWords,

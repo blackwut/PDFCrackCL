@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F33AAB531CD7DF2300953A38 /* TestKernels.ocl in CopyFiles */ = {isa = PBXBuildFile; fileRef = F33AAB521CD7D5F900953A38 /* TestKernels.ocl */; };
+		F344D3831CD881410065732F /* CryptoManager.c in Sources */ = {isa = PBXBuildFile; fileRef = F344D3811CD881400065732F /* CryptoManager.c */; };
 		F387860D1C6A3A73009314E0 /* CLManager.c in Sources */ = {isa = PBXBuildFile; fileRef = F38786021C6A3A73009314E0 /* CLManager.c */; };
 		F387860E1C6A3A73009314E0 /* CLPrint.c in Sources */ = {isa = PBXBuildFile; fileRef = F38786041C6A3A73009314E0 /* CLPrint.c */; };
 		F387860F1C6A3A73009314E0 /* common.c in Sources */ = {isa = PBXBuildFile; fileRef = F38786061C6A3A73009314E0 /* common.c */; };
@@ -22,6 +24,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				F33AAB531CD7DF2300953A38 /* TestKernels.ocl in CopyFiles */,
 				F38786131C6A3A7A009314E0 /* Kernels.ocl in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -29,6 +32,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F33AAB521CD7D5F900953A38 /* TestKernels.ocl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = TestKernels.ocl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		F344D3811CD881400065732F /* CryptoManager.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = CryptoManager.c; sourceTree = "<group>"; };
+		F344D3821CD881410065732F /* CryptoManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CryptoManager.h; sourceTree = "<group>"; };
 		F38785E61C6A39DA009314E0 /* PDFCrackCL */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PDFCrackCL; sourceTree = BUILT_PRODUCTS_DIR; };
 		F38786021C6A3A73009314E0 /* CLManager.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = CLManager.c; sourceTree = "<group>"; };
 		F38786031C6A3A73009314E0 /* CLManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLManager.h; sourceTree = "<group>"; };
@@ -79,11 +85,14 @@
 				F38786021C6A3A73009314E0 /* CLManager.c */,
 				F38786051C6A3A73009314E0 /* CLPrint.h */,
 				F38786041C6A3A73009314E0 /* CLPrint.c */,
+				F344D3821CD881410065732F /* CryptoManager.h */,
+				F344D3811CD881400065732F /* CryptoManager.c */,
 				F38786071C6A3A73009314E0 /* common.h */,
 				F38786061C6A3A73009314E0 /* common.c */,
 				F387860C1C6A3A73009314E0 /* pdfparser.h */,
 				F387860B1C6A3A73009314E0 /* pdfparser.c */,
 				F38786081C6A3A73009314E0 /* Kernels.ocl */,
+				F33AAB521CD7D5F900953A38 /* TestKernels.ocl */,
 			);
 			path = PDFCrackCL;
 			sourceTree = "<group>";
@@ -154,6 +163,7 @@
 			files = (
 				F38786111C6A3A73009314E0 /* PDFCrackCL.c in Sources */,
 				F38786121C6A3A73009314E0 /* pdfparser.c in Sources */,
+				F344D3831CD881410065732F /* CryptoManager.c in Sources */,
 				F387860F1C6A3A73009314E0 /* common.c in Sources */,
 				F387860E1C6A3A73009314E0 /* CLPrint.c in Sources */,
 				F387860D1C6A3A73009314E0 /* CLManager.c in Sources */,

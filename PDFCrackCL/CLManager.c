@@ -25,7 +25,7 @@ void CLErrorCheck(cl_int error, const char * function, const char * message, int
     }
 }
 
-cl_platform_id CLSelectPlatform(int platformIndex)
+CLPlatform CLSelectPlatform(int platformIndex)
 {
     if (platformIndex >= 0) {
         
@@ -36,7 +36,7 @@ cl_platform_id CLSelectPlatform(int platformIndex)
         err = clGetPlatformIDs(0, NULL, &nPlatforms);
         CLErrorCheck(err, "clGetPlatformIDs", "get nPlatforms", CHECK_EXIT);
         
-        platforms = (cl_platform_id *)calloc(nPlatforms, sizeof(cl_platform_id));
+        platforms = (CLPlatform *)calloc(nPlatforms, sizeof(CLPlatform));
         
         err = clGetPlatformIDs(nPlatforms, platforms, NULL);
         CLErrorCheck(err, "clGetPlatformIDs", "get platforms IDs", CHECK_EXIT);
@@ -48,18 +48,18 @@ cl_platform_id CLSelectPlatform(int platformIndex)
     return NULL;
 }
 
-cl_device_id CLSelectDevice(cl_platform_id platform, int deviceIndex)
+CLDevice CLSelectDevice(CLPlatform platform, int deviceIndex)
 {
     if (platform && deviceIndex >= 0) {
     
         cl_int err;
         cl_uint nDevices;
-        cl_device_id *devices;
+        CLDevice *devices;
         
         err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, NULL, &nDevices);
         CLErrorCheck(err, "clGetDeviceIDs", "get nDevices", CHECK_EXIT);
         
-        devices = (cl_device_id *)calloc(nDevices, sizeof(cl_device_id));
+        devices = (CLDevice *)calloc(nDevices, sizeof(CLDevice));
         
         err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, nDevices, devices, NULL);
         CLErrorCheck(err, "clGetDeviceIDs", "get device IDs", CHECK_EXIT);
@@ -72,27 +72,27 @@ cl_device_id CLSelectDevice(cl_platform_id platform, int deviceIndex)
     return NULL;
 }
 
-cl_context CLCreateContext(cl_platform_id platform, cl_device_id device)
+CLContext CLCreateContext(CLPlatform platform, CLDevice device)
 {
     cl_int err;
     cl_context_properties contextProperties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0};
-    cl_context context = clCreateContext(contextProperties, 1, &device, NULL, NULL, &err);
+    CLContext context = clCreateContext(contextProperties, 1, &device, NULL, NULL, &err);
     CLErrorCheck(err, "clCreateContext", "create context", CHECK_EXIT);
     return context;
 }
 
-cl_command_queue CLCreateQueue(cl_context context, cl_device_id device)
+CLQueue CLCreateQueue(CLContext context, CLDevice device)
 {
     cl_int err;
-    cl_command_queue queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CLQueue queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
     CLErrorCheck(err, "clCreateCommandQueue", "create queue", CHECK_EXIT);
     return queue;
 }
 
-cl_program CLCreateProgram(cl_context context, cl_device_id device, const char * fileName)
+CLProgram CLCreateProgram(CLContext context, CLDevice device, const char * fileName)
 {
     cl_int err;
-    cl_program program;
+    CLProgram program;
     
     char *buffer = (char *)calloc(BUFFER_SIZE, sizeof(char));
     time_t now = time(NULL);
@@ -115,10 +115,10 @@ cl_program CLCreateProgram(cl_context context, cl_device_id device, const char *
     return program;
 }
 
-cl_kernel CLCreateKernel(cl_program program, const char * kernelName)
+CLKernel CLCreateKernel(CLProgram program, const char * kernelName)
 {
     cl_int err;
-    cl_kernel kernel;
+    CLKernel kernel;
     
     kernel = clCreateKernel(program, kernelName, &err);
     CLErrorCheck(err, "clCreateKernel", "create kernel", CHECK_EXIT);
@@ -126,7 +126,7 @@ cl_kernel CLCreateKernel(cl_program program, const char * kernelName)
     return kernel;
 }
 
-size_t CLGetPreferredWorkGroupSizeMultiple(cl_kernel kernel, cl_device_id device, const char * name)
+size_t CLGetPreferredWorkGroupSizeMultiple(CLKernel kernel, CLDevice device, const char * name)
 {
     cl_int error;
     size_t preferredWorkGroupSizeMultiple;
@@ -136,58 +136,63 @@ size_t CLGetPreferredWorkGroupSizeMultiple(cl_kernel kernel, cl_device_id device
     return preferredWorkGroupSizeMultiple;
 }
 
-cl_mem CLCreateBufferHostVar(cl_context context, cl_mem_flags flags, size_t size, void * hostVar, const char * name)
+size_t CLGetOptimalGlobalWorkItemsSize(size_t numberOfElements, size_t lws)
+{
+    return (numberOfElements + lws - 1) / lws * lws;
+}
+
+CLMem CLCreateBufferHostVar(CLContext context, cl_mem_flags flags, size_t size, void * hostVar, const char * name)
 {
     cl_int error;
-    cl_mem var = clCreateBuffer(context, flags | CL_MEM_COPY_HOST_PTR, size, hostVar, &error);
+    CLMem var = clCreateBuffer(context, flags | CL_MEM_COPY_HOST_PTR, size, hostVar, &error);
     CLErrorCheck(error, "clCreateBuffer", name, CHECK_EXIT);
     
     return var;
 }
 
-cl_mem CLCreateBuffer(cl_context context, cl_mem_flags flags, size_t size, const char * name)
+CLMem CLCreateBuffer(CLContext context, cl_mem_flags flags, size_t size, const char * name)
 {
     cl_int error;
-    cl_mem var = clCreateBuffer(context, flags, size, NULL, &error);
+    CLMem var = clCreateBuffer(context, flags, size, NULL, &error);
     CLErrorCheck(error, "clCreateBuffer", name, CHECK_EXIT);
     
     return var;
 }
 
-void CLSetKernelArg(cl_kernel kernel, cl_uint index, size_t size, const void * arg, const char * name)
+void CLSetKernelArg(CLKernel kernel, cl_uint index, size_t size, const void * arg, const char * name)
 {
     cl_int error;
     error = clSetKernelArg(kernel, index, size, arg);
     CLErrorCheck(error, "clSetKernelArg", "", CHECK_NOT_EXIT);
 }
 
-void CLEnqueueNDRangeKernel(cl_command_queue queue, cl_kernel kernel, const size_t * globalWorkOffset, const size_t * globalWorkSize, const size_t * localWorkSize, cl_uint numberOfEventsWaitList, const cl_event * eventsWaitList, cl_event * event, const char * name)
+void CLEnqueueNDRangeKernel(CLQueue queue, CLKernel kernel, const size_t * globalWorkOffset, const size_t * globalWorkSize, const size_t * localWorkSize, cl_uint numberOfEventsWaitList, const CLEvent * eventsWaitList, CLEvent * event, const char * name)
 {
     cl_int error;
     error = clEnqueueNDRangeKernel(queue, kernel, 1, globalWorkOffset, globalWorkSize, localWorkSize, numberOfEventsWaitList, eventsWaitList, event);
     CLErrorCheck(error, "clEnqueueNDRangeKernel", name, CHECK_EXIT);
 }
 
-void CLFinish(cl_command_queue queue)
+void CLFinish(CLQueue queue)
 {
     cl_int error;
     error = clFinish(queue);
     CLErrorCheck(error, "clFinish", "", CHECK_EXIT);
 }
 
-void CLReleaseMemObject(cl_mem var, const char * name)
+void CLReleaseMemObject(CLMem var, const char * name)
 {
     cl_int error;
     error = clReleaseMemObject(var);
     CLErrorCheck(error, "clReleaseMemObject", name, CHECK_NOT_EXIT);
 }
 
-void CLReleaseEvent(cl_event event)
+void CLReleaseEvent(CLEvent event)
 {
     clReleaseEvent(event);
 }
 
-void printStatsKernel(cl_event event, size_t numberOfElements, size_t totalBytes, const char * name)
+void printStatsKernel(CLEvent event, size_t numberOfElements, size_t totalBytes, const char * name)
 {
     cl_ulong timeStart, timeEnd;
     double totalTimeNS, totalTimeMS, totalTimeS, bandwidth;
@@ -206,7 +211,7 @@ void printStatsKernel(cl_event event, size_t numberOfElements, size_t totalBytes
     printf("%s:\n Time: %0.3f ms\n Elements/Second: %zu\n Bandwidth: %0.3f GB/s\n\n", name, totalTimeMS, elementsPerSecond, bandwidth);
 }
 
-void printTimeBetweenEvents(cl_event start, cl_event finish, const char * name)
+void printTimeBetweenEvents(CLEvent start, CLEvent finish, const char * name)
 {
     cl_ulong timeStart, timeEnd;
     double totalTimeNS, totalTimeMS;

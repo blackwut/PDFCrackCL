@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 
-void CLPrintPlatformInfo(cl_platform_id platformID)
+void CLPrintPlatformInfo(CLPlatform platformID)
 {
     cl_int err;
     size_t nBuffer;
@@ -36,14 +36,14 @@ void CLPrintPlatforms()
 {
     cl_int err;
     cl_uint nPlatforms;
-    cl_platform_id *platforms;
+    CLPlatform *platforms;
     
     //Chiedo quante piattaforme sono installate
     err = clGetPlatformIDs(0, NULL, &nPlatforms);
     CLErrorCheck(err, "clGetPlatformIDs", "get number of platforms", CHECK_EXIT);
     
     //Alloco l'array platforms
-    platforms = (cl_platform_id *)calloc(nPlatforms, sizeof(cl_platform_id));
+    platforms = (CLPlatform *)calloc(nPlatforms, sizeof(CLPlatform));
     
     //Chiedo gli IDs delle piattaforme installate
     err = clGetPlatformIDs(nPlatforms, platforms, NULL);
@@ -55,7 +55,7 @@ void CLPrintPlatforms()
     }
 }
 
-void CLPrintDeviceInfo(cl_device_id deviceID)
+void CLPrintDeviceInfo(CLDevice deviceID)
 {
     cl_int err;
     size_t nBuffer;
@@ -93,16 +93,16 @@ void CLPrintDeviceInfo(cl_device_id deviceID)
     
 }
 
-void CLPrintDevices(cl_platform_id platform)
+void CLPrintDevices(CLPlatform platform)
 {
     cl_int err;
     cl_uint nDevices;
-    cl_device_id *devices;
+    CLDevice *devices;
     
     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, NULL, &nDevices);
     CLErrorCheck(err, "clGetDeviceIDs", "get number of devices", CHECK_EXIT);
     
-    devices = (cl_device_id *)calloc(nDevices, sizeof(cl_device_id));
+    devices = (CLDevice *)calloc(nDevices, sizeof(CLDevice));
     
     err = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, nDevices, devices, NULL);
     CLErrorCheck(err, "clGetDeviceIDs", "get device IDs", CHECK_EXIT);
