@@ -2,10 +2,10 @@
 
 #define TRUE 1
 #define FALSE 0
-#define DEBUG_initWords TRUE
+#define DEBUG_initWords FALSE
 #define DEBUG_MD5 FALSE
 #define DEBUG_MD5_50 FALSE
-#define DEBUG_RC4 FALSE
+#define DEBUG_RC4 TRUE
 
 
 /* Macros for reading/writing chars from int32's (from rar_kernel.cl) */
@@ -33,457 +33,385 @@
 
 
 __constant const uchar pad[32] = {
-    0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
-    0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
-    0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
-    0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A
+	0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
+	0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
+	0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
+	0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A
 };
 
-__kernel void initWords(uint numberOfWords,
-                        __constant uchar * restrict charset,
-                        uint charsetLength,
-                        __constant uchar * restrict otherPad,
-                        __global uint16 * restrict wordsHalfOne,
-                        __global uint16 * restrict wordsHalfTwo,
-                        __global uint4 * restrict hashes)
-{
-    uint id = get_global_id(0);
-    if (id >= numberOfWords)
-        return;
-    
-    uint n = id;//203617; // = "bene"
-    uint nPrev;
-    uint x = 0;
-    uint wordLength = 0;
-    uint16 wordInt[2] = {0};
-    uchar * word = (uchar *)(wordInt);
-    
-    while (n != 0 && wordLength < 32) {
-        nPrev = n;
-        n = n / charsetLength;
-        x = nPrev - (n * charsetLength);
-        word[wordLength++] = charset[x];
-    }
-    
-    uint i;
-    for (i = 0; wordLength < 32; ++wordLength, ++i) {
-        word[wordLength] = pad[i];
-    }
-    
-    for (i = 0; i < 52; ++i) {
-        word[32 + i] = otherPad[i];
-    }
-    
-    word[84] = 0x80;
-    word[120] = (uchar)(84 << 3);
-    word[121] = (uchar)(84 >> 5);
-    
-    
-    wordsHalfOne[id] = wordInt[0];
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    wordsHalfTwo[id] = wordInt[1];
-    hashes[id] = (uint4)(0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476);
-    
-#if DEBUG_initWords
-    if (id == 1) {
-        uint v;
-        printf("DEBUG initWords:\n");
-        
-        printf("Charset: ");
-        for (v = 0; v < charsetLength; ++v) {
-            printf("%c", charset[v]);
-        }
-        printf("\n");
-        
-        printf("Word: ");
-        for (v = 0; v < 128; ++v) {
-            printf("%02X", word[v]);
-        }
-        printf("\n");
-        
-        printf("hashes[1]: ");
-        printf("%08X ", hashes[id].x);
-        printf("%08X ", hashes[id].y);
-        printf("%08X ", hashes[id].z);
-        printf("%08X", hashes[id].w);
-        printf("\n\n");
-    }
-#endif
-}
-
 __kernel void initWordsWithOffset(__constant uchar * offsetString,
-                                  uint offsetLenght,
-                                  unsigned long long numberOfWords,
-                                  __constant uchar * restrict charset,
-                                  uint charsetLength,
-                                  __constant uchar * restrict otherPad,
-                                  __global uint16 * restrict wordsHalfOne,
-                                  __global uint16 * restrict wordsHalfTwo,
-                                  __global uint4 * restrict hashes)
+								  uint offsetLenght,
+								  unsigned long long numberOfWords,
+								  __constant uchar * restrict charset,
+								  uint charsetLength,
+								  __constant uchar * restrict otherPad,
+								  __global uint16 * restrict wordsHalfOne,
+								  __global uint16 * restrict wordsHalfTwo,
+								  __global uint4 * restrict hashes)
 {
-    unsigned long id = get_global_id(0);
-    if (id >= numberOfWords)
-        return;
-    
-    //Declaring word length
-    uint wordLength = offsetLenght;
-    
-    //Declaring word
-    uint16 wordInt[2] = {0};
-    uchar * word = (uchar *)(wordInt);
-    
-    //Coping offsetString into word
-    for (uint i = 0; i < offsetLenght; ++i) {
-        word[i] = offsetString[i];
-    }
-    
-    uint remainder = 0;
-    uint quoto = id;
-    uint quotoPrev;
-    
-    do {
-        quotoPrev = quoto;
-        quoto /= charsetLength;
-        remainder = quotoPrev - (quoto * charsetLength);
-        word[wordLength++] = charset[remainder];
-    } while (quoto-- != 0 && wordLength < 32);
-    
-    for (uint i = 0; wordLength < 32; ++wordLength, ++i) {
-        word[wordLength] = pad[i];
-    }
-    
-    for (uint i = 0; i < 52; ++i) {
-        word[32 + i] = otherPad[i];
-    }
-    
-    word[84] = 0x80;
-    word[120] = (uchar)(84 << 3);
-    word[121] = (uchar)(84 >> 5);
-    
-    wordsHalfOne[id] = wordInt[0];
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    wordsHalfTwo[id] = wordInt[1];
-    hashes[id] = (uint4)(0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476);
+	unsigned long id = get_global_id(0);
+	if (id >= numberOfWords)
+		return;
+
+	//Declaring word length
+	uint wordLength = offsetLenght;
+
+	//Declaring word
+	uint16 wordInt[2] = {0};
+	uchar * word = (uchar *)(wordInt);
+
+	//Coping offsetString into word
+	for (uint i = 0; i < offsetLenght; ++i) {
+		word[i] = offsetString[i];
+	}
+
+	uint remainder = 0;
+	uint quoto = id;
+	uint quotoPrev;
+
+	do {
+		quotoPrev = quoto;
+		quoto /= charsetLength;
+		remainder = quotoPrev - (quoto * charsetLength);
+		word[wordLength++] = charset[remainder];
+	} while (quoto-- != 0 && wordLength < 32);
+
+	for (uint i = 0; wordLength < 32; ++wordLength, ++i) {
+		word[wordLength] = pad[i];
+	}
+
+	for (uint i = 0; i < 52; ++i) {
+		word[32 + i] = otherPad[i];
+	}
+
+	word[84] = 0x80;
+	word[120] = (uchar)(84 << 3);
+	word[121] = (uchar)(84 >> 5);
+
+	wordsHalfOne[id] = wordInt[0];
+	barrier(CLK_GLOBAL_MEM_FENCE);
+	wordsHalfTwo[id] = wordInt[1];
+	hashes[id] = (uint4)(0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476);
 }
 
 __kernel void MD5(uint numberOfWords,
-                  __global uint * restrict words,
-                  __global uint4 * restrict hashes)
+				  __global uint * restrict words,
+				  __global uint4 * restrict hashes)
 {
-    uint id = get_global_id(0);
-    if (id >= numberOfWords)
-        return;
-    
-    uint localIndex = id * 16;
-    uint key[16] = {0};
-    for (uint i = 0; i < 16; ++i) {
-        key[i] = words[localIndex + i];
-    }
-    
-    uint a, b, c, d;
-    a = hashes[id].x;
-    b = hashes[id].y;
-    c = hashes[id].z;
-    d = hashes[id].w;
-    
-    /* Round 1 */
-    STEP(F, a, b, c, d, GET(0) , 0xd76aa478,  7)
-    STEP(F, d, a, b, c, GET(1) , 0xe8c7b756, 12)
-    STEP(F, c, d, a, b, GET(2) , 0x242070db, 17)
-    STEP(F, b, c, d, a, GET(3) , 0xc1bdceee, 22)
-    STEP(F, a, b, c, d, GET(4) , 0xf57c0faf,  7)
-    STEP(F, d, a, b, c, GET(5) , 0x4787c62a, 12)
-    STEP(F, c, d, a, b, GET(6) , 0xa8304613, 17)
-    STEP(F, b, c, d, a, GET(7) , 0xfd469501, 22)
-    STEP(F, a, b, c, d, GET(8) , 0x698098d8,  7)
-    STEP(F, d, a, b, c, GET(9) , 0x8b44f7af, 12)
-    STEP(F, c, d, a, b, GET(10), 0xffff5bb1, 17)
-    STEP(F, b, c, d, a, GET(11), 0x895cd7be, 22)
-    STEP(F, a, b, c, d, GET(12), 0x6b901122,  7)
-    STEP(F, d, a, b, c, GET(13), 0xfd987193, 12)
-    STEP(F, c, d, a, b, GET(14), 0xa679438e, 17)
-    STEP(F, b, c, d, a, GET(15), 0x49b40821, 22)
-    
-    /* Round 2 */
-    STEP(G, a, b, c, d, GET(1) , 0xf61e2562,  5)
-    STEP(G, d, a, b, c, GET(6) , 0xc040b340,  9)
-    STEP(G, c, d, a, b, GET(11), 0x265e5a51, 14)
-    STEP(G, b, c, d, a, GET(0) , 0xe9b6c7aa, 20)
-    STEP(G, a, b, c, d, GET(5) , 0xd62f105d,  5)
-    STEP(G, d, a, b, c, GET(10), 0x02441453,  9)
-    STEP(G, c, d, a, b, GET(15), 0xd8a1e681, 14)
-    STEP(G, b, c, d, a, GET(4) , 0xe7d3fbc8, 20)
-    STEP(G, a, b, c, d, GET(9) , 0x21e1cde6,  5)
-    STEP(G, d, a, b, c, GET(14), 0xc33707d6,  9)
-    STEP(G, c, d, a, b, GET(3) , 0xf4d50d87, 14)
-    STEP(G, b, c, d, a, GET(8) , 0x455a14ed, 20)
-    STEP(G, a, b, c, d, GET(13), 0xa9e3e905,  5)
-    STEP(G, d, a, b, c, GET(2) , 0xfcefa3f8,  9)
-    STEP(G, c, d, a, b, GET(7) , 0x676f02d9, 14)
-    STEP(G, b, c, d, a, GET(12), 0x8d2a4c8a, 20)
-    
-    /* Round 3 */
-    STEP(H, a, b, c, d, GET(5) , 0xfffa3942,  4)
-    STEP(H, d, a, b, c, GET(8) , 0x8771f681, 11)
-    STEP(H, c, d, a, b, GET(11), 0x6d9d6122, 16)
-    STEP(H, b, c, d, a, GET(14), 0xfde5380c, 23)
-    STEP(H, a, b, c, d, GET(1) , 0xa4beea44,  4)
-    STEP(H, d, a, b, c, GET(4) , 0x4bdecfa9, 11)
-    STEP(H, c, d, a, b, GET(7) , 0xf6bb4b60, 16)
-    STEP(H, b, c, d, a, GET(10), 0xbebfbc70, 23)
-    STEP(H, a, b, c, d, GET(13), 0x289b7ec6,  4)
-    STEP(H, d, a, b, c, GET(0) , 0xeaa127fa, 11)
-    STEP(H, c, d, a, b, GET(3) , 0xd4ef3085, 16)
-    STEP(H, b, c, d, a, GET(6) , 0x04881d05, 23)
-    STEP(H, a, b, c, d, GET(9) , 0xd9d4d039,  4)
-    STEP(H, d, a, b, c, GET(12), 0xe6db99e5, 11)
-    STEP(H, c, d, a, b, GET(15), 0x1fa27cf8, 16)
-    STEP(H, b, c, d, a, GET(2) , 0xc4ac5665, 23)
-    
-    /* Round 4 */
-    STEP(I, a, b, c, d, GET(0) , 0xf4292244,  6)
-    STEP(I, d, a, b, c, GET(7) , 0x432aff97, 10)
-    STEP(I, c, d, a, b, GET(14), 0xab9423a7, 15)
-    STEP(I, b, c, d, a, GET(5) , 0xfc93a039, 21)
-    STEP(I, a, b, c, d, GET(12), 0x655b59c3,  6)
-    STEP(I, d, a, b, c, GET(3) , 0x8f0ccc92, 10)
-    STEP(I, c, d, a, b, GET(10), 0xffeff47d, 15)
-    STEP(I, b, c, d, a, GET(1) , 0x85845dd1, 21)
-    STEP(I, a, b, c, d, GET(8) , 0x6fa87e4f,  6)
-    STEP(I, d, a, b, c, GET(15), 0xfe2ce6e0, 10)
-    STEP(I, c, d, a, b, GET(6) , 0xa3014314, 15)
-    STEP(I, b, c, d, a, GET(13), 0x4e0811a1, 21)
-    STEP(I, a, b, c, d, GET(4) , 0xf7537e82,  6)
-    STEP(I, d, a, b, c, GET(11), 0xbd3af235, 10)
-    STEP(I, c, d, a, b, GET(2) , 0x2ad7d2bb, 15)
-    STEP(I, b, c, d, a, GET(9) , 0xeb86d391, 21)
-    
-    hashes[id] += (uint4)(a, b, c, d);
+	uint id = get_global_id(0);
+	if (id >= numberOfWords)
+		return;
+
+	uint localIndex = id * 16;
+	uint key[16] = {0};
+	for (uint i = 0; i < 16; ++i) {
+		key[i] = words[localIndex + i];
+	}
+
+	uint a, b, c, d;
+	a = hashes[id].x;
+	b = hashes[id].y;
+	c = hashes[id].z;
+	d = hashes[id].w;
+
+	/* Round 1 */
+	STEP(F, a, b, c, d, GET(0) , 0xd76aa478,  7)
+	STEP(F, d, a, b, c, GET(1) , 0xe8c7b756, 12)
+	STEP(F, c, d, a, b, GET(2) , 0x242070db, 17)
+	STEP(F, b, c, d, a, GET(3) , 0xc1bdceee, 22)
+	STEP(F, a, b, c, d, GET(4) , 0xf57c0faf,  7)
+	STEP(F, d, a, b, c, GET(5) , 0x4787c62a, 12)
+	STEP(F, c, d, a, b, GET(6) , 0xa8304613, 17)
+	STEP(F, b, c, d, a, GET(7) , 0xfd469501, 22)
+	STEP(F, a, b, c, d, GET(8) , 0x698098d8,  7)
+	STEP(F, d, a, b, c, GET(9) , 0x8b44f7af, 12)
+	STEP(F, c, d, a, b, GET(10), 0xffff5bb1, 17)
+	STEP(F, b, c, d, a, GET(11), 0x895cd7be, 22)
+	STEP(F, a, b, c, d, GET(12), 0x6b901122,  7)
+	STEP(F, d, a, b, c, GET(13), 0xfd987193, 12)
+	STEP(F, c, d, a, b, GET(14), 0xa679438e, 17)
+	STEP(F, b, c, d, a, GET(15), 0x49b40821, 22)
+
+	/* Round 2 */
+	STEP(G, a, b, c, d, GET(1) , 0xf61e2562,  5)
+	STEP(G, d, a, b, c, GET(6) , 0xc040b340,  9)
+	STEP(G, c, d, a, b, GET(11), 0x265e5a51, 14)
+	STEP(G, b, c, d, a, GET(0) , 0xe9b6c7aa, 20)
+	STEP(G, a, b, c, d, GET(5) , 0xd62f105d,  5)
+	STEP(G, d, a, b, c, GET(10), 0x02441453,  9)
+	STEP(G, c, d, a, b, GET(15), 0xd8a1e681, 14)
+	STEP(G, b, c, d, a, GET(4) , 0xe7d3fbc8, 20)
+	STEP(G, a, b, c, d, GET(9) , 0x21e1cde6,  5)
+	STEP(G, d, a, b, c, GET(14), 0xc33707d6,  9)
+	STEP(G, c, d, a, b, GET(3) , 0xf4d50d87, 14)
+	STEP(G, b, c, d, a, GET(8) , 0x455a14ed, 20)
+	STEP(G, a, b, c, d, GET(13), 0xa9e3e905,  5)
+	STEP(G, d, a, b, c, GET(2) , 0xfcefa3f8,  9)
+	STEP(G, c, d, a, b, GET(7) , 0x676f02d9, 14)
+	STEP(G, b, c, d, a, GET(12), 0x8d2a4c8a, 20)
+
+	/* Round 3 */
+	STEP(H, a, b, c, d, GET(5) , 0xfffa3942,  4)
+	STEP(H, d, a, b, c, GET(8) , 0x8771f681, 11)
+	STEP(H, c, d, a, b, GET(11), 0x6d9d6122, 16)
+	STEP(H, b, c, d, a, GET(14), 0xfde5380c, 23)
+	STEP(H, a, b, c, d, GET(1) , 0xa4beea44,  4)
+	STEP(H, d, a, b, c, GET(4) , 0x4bdecfa9, 11)
+	STEP(H, c, d, a, b, GET(7) , 0xf6bb4b60, 16)
+	STEP(H, b, c, d, a, GET(10), 0xbebfbc70, 23)
+	STEP(H, a, b, c, d, GET(13), 0x289b7ec6,  4)
+	STEP(H, d, a, b, c, GET(0) , 0xeaa127fa, 11)
+	STEP(H, c, d, a, b, GET(3) , 0xd4ef3085, 16)
+	STEP(H, b, c, d, a, GET(6) , 0x04881d05, 23)
+	STEP(H, a, b, c, d, GET(9) , 0xd9d4d039,  4)
+	STEP(H, d, a, b, c, GET(12), 0xe6db99e5, 11)
+	STEP(H, c, d, a, b, GET(15), 0x1fa27cf8, 16)
+	STEP(H, b, c, d, a, GET(2) , 0xc4ac5665, 23)
+
+	/* Round 4 */
+	STEP(I, a, b, c, d, GET(0) , 0xf4292244,  6)
+	STEP(I, d, a, b, c, GET(7) , 0x432aff97, 10)
+	STEP(I, c, d, a, b, GET(14), 0xab9423a7, 15)
+	STEP(I, b, c, d, a, GET(5) , 0xfc93a039, 21)
+	STEP(I, a, b, c, d, GET(12), 0x655b59c3,  6)
+	STEP(I, d, a, b, c, GET(3) , 0x8f0ccc92, 10)
+	STEP(I, c, d, a, b, GET(10), 0xffeff47d, 15)
+	STEP(I, b, c, d, a, GET(1) , 0x85845dd1, 21)
+	STEP(I, a, b, c, d, GET(8) , 0x6fa87e4f,  6)
+	STEP(I, d, a, b, c, GET(15), 0xfe2ce6e0, 10)
+	STEP(I, c, d, a, b, GET(6) , 0xa3014314, 15)
+	STEP(I, b, c, d, a, GET(13), 0x4e0811a1, 21)
+	STEP(I, a, b, c, d, GET(4) , 0xf7537e82,  6)
+	STEP(I, d, a, b, c, GET(11), 0xbd3af235, 10)
+	STEP(I, c, d, a, b, GET(2) , 0x2ad7d2bb, 15)
+	STEP(I, b, c, d, a, GET(9) , 0xeb86d391, 21)
+
+	hashes[id] += (uint4)(a, b, c, d);
 
 #if DEBUG_MD5
-    if (id == 1) {
-        printf("DEBUG MD5:\n");
-        printf("hashes[1]: ");
-        printf("%08X ", hashes[id].x);
-        printf("%08X ", hashes[id].y);
-        printf("%08X ", hashes[id].z);
-        printf("%08X", hashes[id].w);
-        printf("\n\n");
-    }
+	if (id == 1) {
+		printf("DEBUG MD5:\n");
+		printf("hashes[1]: ");
+		printf("%08X ", hashes[id].x);
+		printf("%08X ", hashes[id].y);
+		printf("%08X ", hashes[id].z);
+		printf("%08X", hashes[id].w);
+		printf("\n\n");
+	}
 #endif
 }
 
 __kernel void MD5_50(uint numberOfWords,
-                     __global uint4 * restrict hashes)
+					 __global uint4 * restrict hashes)
 {
-    uint id = get_global_id(0);
-    if (id >= numberOfWords)
-        return;
-    
-    uint key[16] = {0};
-    key[0] = hashes[id].x;
-    key[1] = hashes[id].y;
-    key[2] = hashes[id].z;
-    key[3] = hashes[id].w;
-    
-    uint a, b, c, d;
-    a = 0x67452301;
-    b = 0xefcdab89;
-    c = 0x98badcfe;
-    d = 0x10325476;
-    
-    PUTCHAR(key, 16, 0x80);
-    PUTCHAR(key, 56, 16 << 3);
-    PUTCHAR(key, 57, 16 >> 5);
-    
-    /* Round 1 */
-    STEP(F, a, b, c, d, GET(0) , 0xd76aa478,  7)
-    STEP(F, d, a, b, c, GET(1) , 0xe8c7b756, 12)
-    STEP(F, c, d, a, b, GET(2) , 0x242070db, 17)
-    STEP(F, b, c, d, a, GET(3) , 0xc1bdceee, 22)
-    STEP(F, a, b, c, d, GET(4) , 0xf57c0faf,  7)
-    STEP(F, d, a, b, c, GET(5) , 0x4787c62a, 12)
-    STEP(F, c, d, a, b, GET(6) , 0xa8304613, 17)
-    STEP(F, b, c, d, a, GET(7) , 0xfd469501, 22)
-    STEP(F, a, b, c, d, GET(8) , 0x698098d8,  7)
-    STEP(F, d, a, b, c, GET(9) , 0x8b44f7af, 12)
-    STEP(F, c, d, a, b, GET(10), 0xffff5bb1, 17)
-    STEP(F, b, c, d, a, GET(11), 0x895cd7be, 22)
-    STEP(F, a, b, c, d, GET(12), 0x6b901122,  7)
-    STEP(F, d, a, b, c, GET(13), 0xfd987193, 12)
-    STEP(F, c, d, a, b, GET(14), 0xa679438e, 17)
-    STEP(F, b, c, d, a, GET(15), 0x49b40821, 22)
-    
-    /* Round 2 */
-    STEP(G, a, b, c, d, GET(1) , 0xf61e2562,  5)
-    STEP(G, d, a, b, c, GET(6) , 0xc040b340,  9)
-    STEP(G, c, d, a, b, GET(11), 0x265e5a51, 14)
-    STEP(G, b, c, d, a, GET(0) , 0xe9b6c7aa, 20)
-    STEP(G, a, b, c, d, GET(5) , 0xd62f105d,  5)
-    STEP(G, d, a, b, c, GET(10), 0x02441453,  9)
-    STEP(G, c, d, a, b, GET(15), 0xd8a1e681, 14)
-    STEP(G, b, c, d, a, GET(4) , 0xe7d3fbc8, 20)
-    STEP(G, a, b, c, d, GET(9) , 0x21e1cde6,  5)
-    STEP(G, d, a, b, c, GET(14), 0xc33707d6,  9)
-    STEP(G, c, d, a, b, GET(3) , 0xf4d50d87, 14)
-    STEP(G, b, c, d, a, GET(8) , 0x455a14ed, 20)
-    STEP(G, a, b, c, d, GET(13), 0xa9e3e905,  5)
-    STEP(G, d, a, b, c, GET(2) , 0xfcefa3f8,  9)
-    STEP(G, c, d, a, b, GET(7) , 0x676f02d9, 14)
-    STEP(G, b, c, d, a, GET(12), 0x8d2a4c8a, 20)
-    
-    /* Round 3 */
-    STEP(H, a, b, c, d, GET(5) , 0xfffa3942,  4)
-    STEP(H, d, a, b, c, GET(8) , 0x8771f681, 11)
-    STEP(H, c, d, a, b, GET(11), 0x6d9d6122, 16)
-    STEP(H, b, c, d, a, GET(14), 0xfde5380c, 23)
-    STEP(H, a, b, c, d, GET(1) , 0xa4beea44,  4)
-    STEP(H, d, a, b, c, GET(4) , 0x4bdecfa9, 11)
-    STEP(H, c, d, a, b, GET(7) , 0xf6bb4b60, 16)
-    STEP(H, b, c, d, a, GET(10), 0xbebfbc70, 23)
-    STEP(H, a, b, c, d, GET(13), 0x289b7ec6,  4)
-    STEP(H, d, a, b, c, GET(0) , 0xeaa127fa, 11)
-    STEP(H, c, d, a, b, GET(3) , 0xd4ef3085, 16)
-    STEP(H, b, c, d, a, GET(6) , 0x04881d05, 23)
-    STEP(H, a, b, c, d, GET(9) , 0xd9d4d039,  4)
-    STEP(H, d, a, b, c, GET(12), 0xe6db99e5, 11)
-    STEP(H, c, d, a, b, GET(15), 0x1fa27cf8, 16)
-    STEP(H, b, c, d, a, GET(2) , 0xc4ac5665, 23)
-    
-    /* Round 4 */
-    STEP(I, a, b, c, d, GET(0) , 0xf4292244,  6)
-    STEP(I, d, a, b, c, GET(7) , 0x432aff97, 10)
-    STEP(I, c, d, a, b, GET(14), 0xab9423a7, 15)
-    STEP(I, b, c, d, a, GET(5) , 0xfc93a039, 21)
-    STEP(I, a, b, c, d, GET(12), 0x655b59c3,  6)
-    STEP(I, d, a, b, c, GET(3) , 0x8f0ccc92, 10)
-    STEP(I, c, d, a, b, GET(10), 0xffeff47d, 15)
-    STEP(I, b, c, d, a, GET(1) , 0x85845dd1, 21)
-    STEP(I, a, b, c, d, GET(8) , 0x6fa87e4f,  6)
-    STEP(I, d, a, b, c, GET(15), 0xfe2ce6e0, 10)
-    STEP(I, c, d, a, b, GET(6) , 0xa3014314, 15)
-    STEP(I, b, c, d, a, GET(13), 0x4e0811a1, 21)
-    STEP(I, a, b, c, d, GET(4) , 0xf7537e82,  6)
-    STEP(I, d, a, b, c, GET(11), 0xbd3af235, 10)
-    STEP(I, c, d, a, b, GET(2) , 0x2ad7d2bb, 15)
-    STEP(I, b, c, d, a, GET(9) , 0xeb86d391, 21)
-    
-    hashes[id] = (uint4)(a + 0x67452301, b + 0xefcdab89, c + 0x98badcfe, d + 0x10325476);
-    
+	uint id = get_global_id(0);
+	if (id >= numberOfWords)
+		return;
+
+	uint key[16] = {0};
+	key[0] = hashes[id].x;
+	key[1] = hashes[id].y;
+	key[2] = hashes[id].z;
+	key[3] = hashes[id].w;
+
+	uint a, b, c, d;
+	a = 0x67452301;
+	b = 0xefcdab89;
+	c = 0x98badcfe;
+	d = 0x10325476;
+
+	PUTCHAR(key, 16, 0x80);
+	PUTCHAR(key, 56, 16 << 3);
+	PUTCHAR(key, 57, 16 >> 5);
+
+	/* Round 1 */
+	STEP(F, a, b, c, d, GET(0) , 0xd76aa478,  7)
+	STEP(F, d, a, b, c, GET(1) , 0xe8c7b756, 12)
+	STEP(F, c, d, a, b, GET(2) , 0x242070db, 17)
+	STEP(F, b, c, d, a, GET(3) , 0xc1bdceee, 22)
+	STEP(F, a, b, c, d, GET(4) , 0xf57c0faf,  7)
+	STEP(F, d, a, b, c, GET(5) , 0x4787c62a, 12)
+	STEP(F, c, d, a, b, GET(6) , 0xa8304613, 17)
+	STEP(F, b, c, d, a, GET(7) , 0xfd469501, 22)
+	STEP(F, a, b, c, d, GET(8) , 0x698098d8,  7)
+	STEP(F, d, a, b, c, GET(9) , 0x8b44f7af, 12)
+	STEP(F, c, d, a, b, GET(10), 0xffff5bb1, 17)
+	STEP(F, b, c, d, a, GET(11), 0x895cd7be, 22)
+	STEP(F, a, b, c, d, GET(12), 0x6b901122,  7)
+	STEP(F, d, a, b, c, GET(13), 0xfd987193, 12)
+	STEP(F, c, d, a, b, GET(14), 0xa679438e, 17)
+	STEP(F, b, c, d, a, GET(15), 0x49b40821, 22)
+
+	/* Round 2 */
+	STEP(G, a, b, c, d, GET(1) , 0xf61e2562,  5)
+	STEP(G, d, a, b, c, GET(6) , 0xc040b340,  9)
+	STEP(G, c, d, a, b, GET(11), 0x265e5a51, 14)
+	STEP(G, b, c, d, a, GET(0) , 0xe9b6c7aa, 20)
+	STEP(G, a, b, c, d, GET(5) , 0xd62f105d,  5)
+	STEP(G, d, a, b, c, GET(10), 0x02441453,  9)
+	STEP(G, c, d, a, b, GET(15), 0xd8a1e681, 14)
+	STEP(G, b, c, d, a, GET(4) , 0xe7d3fbc8, 20)
+	STEP(G, a, b, c, d, GET(9) , 0x21e1cde6,  5)
+	STEP(G, d, a, b, c, GET(14), 0xc33707d6,  9)
+	STEP(G, c, d, a, b, GET(3) , 0xf4d50d87, 14)
+	STEP(G, b, c, d, a, GET(8) , 0x455a14ed, 20)
+	STEP(G, a, b, c, d, GET(13), 0xa9e3e905,  5)
+	STEP(G, d, a, b, c, GET(2) , 0xfcefa3f8,  9)
+	STEP(G, c, d, a, b, GET(7) , 0x676f02d9, 14)
+	STEP(G, b, c, d, a, GET(12), 0x8d2a4c8a, 20)
+
+	/* Round 3 */
+	STEP(H, a, b, c, d, GET(5) , 0xfffa3942,  4)
+	STEP(H, d, a, b, c, GET(8) , 0x8771f681, 11)
+	STEP(H, c, d, a, b, GET(11), 0x6d9d6122, 16)
+	STEP(H, b, c, d, a, GET(14), 0xfde5380c, 23)
+	STEP(H, a, b, c, d, GET(1) , 0xa4beea44,  4)
+	STEP(H, d, a, b, c, GET(4) , 0x4bdecfa9, 11)
+	STEP(H, c, d, a, b, GET(7) , 0xf6bb4b60, 16)
+	STEP(H, b, c, d, a, GET(10), 0xbebfbc70, 23)
+	STEP(H, a, b, c, d, GET(13), 0x289b7ec6,  4)
+	STEP(H, d, a, b, c, GET(0) , 0xeaa127fa, 11)
+	STEP(H, c, d, a, b, GET(3) , 0xd4ef3085, 16)
+	STEP(H, b, c, d, a, GET(6) , 0x04881d05, 23)
+	STEP(H, a, b, c, d, GET(9) , 0xd9d4d039,  4)
+	STEP(H, d, a, b, c, GET(12), 0xe6db99e5, 11)
+	STEP(H, c, d, a, b, GET(15), 0x1fa27cf8, 16)
+	STEP(H, b, c, d, a, GET(2) , 0xc4ac5665, 23)
+
+	/* Round 4 */
+	STEP(I, a, b, c, d, GET(0) , 0xf4292244,  6)
+	STEP(I, d, a, b, c, GET(7) , 0x432aff97, 10)
+	STEP(I, c, d, a, b, GET(14), 0xab9423a7, 15)
+	STEP(I, b, c, d, a, GET(5) , 0xfc93a039, 21)
+	STEP(I, a, b, c, d, GET(12), 0x655b59c3,  6)
+	STEP(I, d, a, b, c, GET(3) , 0x8f0ccc92, 10)
+	STEP(I, c, d, a, b, GET(10), 0xffeff47d, 15)
+	STEP(I, b, c, d, a, GET(1) , 0x85845dd1, 21)
+	STEP(I, a, b, c, d, GET(8) , 0x6fa87e4f,  6)
+	STEP(I, d, a, b, c, GET(15), 0xfe2ce6e0, 10)
+	STEP(I, c, d, a, b, GET(6) , 0xa3014314, 15)
+	STEP(I, b, c, d, a, GET(13), 0x4e0811a1, 21)
+	STEP(I, a, b, c, d, GET(4) , 0xf7537e82,  6)
+	STEP(I, d, a, b, c, GET(11), 0xbd3af235, 10)
+	STEP(I, c, d, a, b, GET(2) , 0x2ad7d2bb, 15)
+	STEP(I, b, c, d, a, GET(9) , 0xeb86d391, 21)
+
+	hashes[id] = (uint4)(a + 0x67452301, b + 0xefcdab89, c + 0x98badcfe, d + 0x10325476);
+
 #if DEBUG_MD5_50
-    if (id == 1) {
-        printf("DEBUG MD5_50:\n");
-        printf("hashes[1]: ");
-        printf("%08X ", hashes[id].x);
-        printf("%08X ", hashes[id].y);
-        printf("%08X ", hashes[id].z);
-        printf("%08X", hashes[id].w);
-        printf("\n\n");
-    }
+	if (id == 1) {
+		printf("DEBUG MD5_50:\n");
+		printf("hashes[1]: ");
+		printf("%08X ", hashes[id].x);
+		printf("%08X ", hashes[id].y);
+		printf("%08X ", hashes[id].z);
+		printf("%08X", hashes[id].w);
+		printf("\n\n");
+	}
 #endif
 }
 
 __kernel void RC4(uint numberOfWords,
-                  __global uchar * keys,
-                  __global uchar * messages,
-                  uchar iteration) {
-    
-    uint id = get_global_id(0);
-    if (id >= numberOfWords)
-        return;
-    
-    __global uint4 * hashes = (__global uint4 *)messages;
-    
-    uchar state[256] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
-        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
-        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
-        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
-        0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-        0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
-        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
-        0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
-        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
-        0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
-        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
-        0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-        0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
-        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
-    };
-    
-    uint i;
-    uchar k, j, tmp;
-    uchar key[16];
-    uchar out[16];
-    uchar message[16];
-    
-    uint localIndex = id * 16;
-    
-    for (i = 0; i < 16; ++i) {
-        key[i] = keys[localIndex + i] ^ iteration;
-    }
-    
-    for (i = 0; i < 16; ++i) {
-        message[i] = messages[localIndex + i];
-    }
-    
-    //KSA: Key-Scheduling Algorithm
-    j = 0;
-    for (i = 0; i < 256; ++i) {
-        j = j + state[i] + key[i & 15]; //i & 15 = i % 16
-        
-        //Swap
-        tmp = state[i];
-        state[i] = state[j];
-        state[j] = tmp;
-    }
-    
-    //PRGA: Pseudo-Random Generation Algorithm
-    j = 0;
-    k = 0;
-    for (i = 0; i < 16; ++i) {
-        j = (j + 1);
-        k = (k + state[j]);
-        
-        //Swap
-        tmp = state[k];
-        state[k] = state[j];
-        state[j] = tmp;
-        
-        //Index of state to avoid outbound array state
-        tmp = state[j] + state[k];
-        
-        out[i] = message[i] ^ state[tmp];
-    }
-    
-    hashes[id] = arrayToUInt4Value(out);
-    
-#if DEBUG_RC4
-    if (id == 1) {
-        uint v;
-        printf("DEBUG RC4:\n");
-        printf("Iteration: %d\n", iteration);
+				  __global uchar * keys,
+				  __global uchar * messages,
+				  uchar iteration) {
 
-        printf("message[1]: ");
-        for (v = 0; v < 16; ++v) {
-            printf("%02X", message[v]);
-        }
-        printf("\n");
-        
-        printf("key[1]: ");
-        for (v = 0; v < 16; ++v) {
-            printf("%02X", key[v]);
-        }
-        printf("\n");
-        
-        printf("out: ");
-        for (v = 0; v < 16; ++v) {
-            printf("%02X", out[v]);
-        }
-        printf("\n\n");
-    }
+	uint id = get_global_id(0);
+	if (id >= numberOfWords)
+		return;
+
+	__global uint4 * hashes = (__global uint4 *)messages;
+
+	uchar state[256] = {
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+		0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+		0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+		0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
+		0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+		0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
+		0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+		0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
+		0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+		0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
+		0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
+		0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+		0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
+		0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+	};
+
+	uint i;
+	uchar k, j, tmp;
+	uchar key[16];
+	uchar out[16];
+	uchar message[16];
+
+	uint localIndex = id * 16;
+
+	for (i = 0; i < 16; ++i) {
+		key[i] = keys[localIndex + i] ^ iteration;
+	}
+
+	for (i = 0; i < 16; ++i) {
+		message[i] = messages[localIndex + i];
+	}
+
+	//KSA: Key-Scheduling Algorithm
+	j = 0;
+	for (i = 0; i < 256; ++i) {
+		j = j + state[i] + key[i & 15]; //i & 15 = i % 16
+
+		//Swap
+		tmp = state[i];
+		state[i] = state[j];
+		state[j] = tmp;
+	}
+
+	//PRGA: Pseudo-Random Generation Algorithm
+	j = 0;
+	k = 0;
+	for (i = 0; i < 16; ++i) {
+		j = (j + 1);
+		k = (k + state[j]);
+
+		//Swap
+		tmp = state[k];
+		state[k] = state[j];
+		state[j] = tmp;
+
+		//Index of state to avoid outbound array state
+		tmp = state[j] + state[k];
+
+		out[i] = message[i] ^ state[tmp];
+	}
+
+	hashes[id] = arrayToUInt4Value(out);
+
+#if DEBUG_RC4
+	if (id == 1) {
+		uint v;
+		printf("DEBUG RC4:\n");
+		printf("Iteration: %d\n", iteration);
+
+		printf("message[1]: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", message[v]);
+		}
+		printf("\n");
+
+		printf("key[1]: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", key[v]);
+		}
+		printf("\n");
+
+		printf("out: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", out[v]);
+		}
+		printf("\n\n");
+	}
 #endif
 }
 
@@ -491,13 +419,13 @@ __kernel void RC4Cpu(uint numberOfWords,
                   __global uchar * restrict keys,
                   __global uchar * restrict messages,
                   uchar iteration) {
-    
+
     uint id = get_global_id(0);
     if (id >= numberOfWords)
         return;
-    
+
     __global uint4 * hashes = (__global uint4 *)messages;
-    
+
     uchar state[256] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
@@ -590,6 +518,7 @@ __kernel void RC4Cpu(uint numberOfWords,
     }
 #endif
 }
+
 
 __kernel void RC4Local(uint numberOfWords,
                   __global uchar16 * restrict keys,
@@ -691,6 +620,241 @@ __kernel void RC4Local(uint numberOfWords,
 }
 
 
+typedef struct stateID {
+	uint localID;
+	uint componentID;
+} stateID;
+
+static inline struct stateID indexToStateID(uint index, uint localSize, uint localID)
+{
+	return (stateID){index / 4 * localSize + localID, index & 3}; // id & 3  =  id % 4
+}
+
+static inline uchar valueAtStateID(__local uchar4 * restrict state, stateID index)
+{
+	uchar4 s = state[index.localID];
+	switch (index.componentID) {
+		case 0:
+			return s.x;
+		case 1:
+			return s.y;
+		case 2:
+			return s.z;
+		case 3:
+			return s.w;
+	}
+}
+
+typedef union char4Int {
+	uchar4 unionChar4;
+	uint unionInt;
+} char4Int;
+
+//typedef union vChar4 {
+//	uchar4 vChar;
+//	uchar aChar[4];
+//} vChar4;
+
+static inline uchar swapChar(__local uchar4 * restrict state, stateID a, stateID b)
+{
+	uint aChar, bChar;
+	uint maskAComponent = (a.componentID << 3);
+	uint maskBComponent = (b.componentID << 3);
+
+	if (a.localID == b.localID) {
+		char4Int swap;
+		swap.unionChar4 = state[a.localID];
+
+		aChar = swap.unionInt >> maskAComponent & 0xFFU;
+		bChar = swap.unionInt >> maskBComponent & 0xFFU;
+
+		swap.unionInt = (swap.unionInt & ~((0xFFU << maskAComponent) | (0xFFU << maskBComponent))) | (bChar << maskAComponent) | (aChar << maskBComponent);
+
+		state[a.localID] = swap.unionChar4;
+
+// SHUFFLE EDITION UNION
+//		vChar4 swap;
+//		vChar4 mask;
+//
+//		swap.vChar = state[a.localID];
+//		mask.vChar = (uchar4)(0, 1, 2, 3);
+//		mask.aChar[a.componentID] = b.componentID;
+//		mask.aChar[b.componentID] = a.componentID;
+//
+//		state[a.localID] = shuffle(swap.vChar, mask.vChar);
+//
+//		return swap.aChar[a.componentID] + swap.aChar[b.componentID];
+
+	} else {
+
+		char4Int swapA, swapB;
+		swapA.unionChar4 = state[a.localID];
+		swapB.unionChar4 = state[b.localID];
+
+		aChar = swapA.unionInt >> maskAComponent & 0xFFU;
+		bChar = swapB.unionInt >> maskBComponent & 0xFFU;
+
+		swapA.unionInt = (swapA.unionInt & ~(0xFFU << maskAComponent)) | (bChar << maskAComponent);
+		swapB.unionInt = (swapB.unionInt & ~(0xFFU << maskBComponent)) | (aChar << maskBComponent);
+
+		state[a.localID] = swapA.unionChar4;
+		state[b.localID] = swapB.unionChar4;
+	}
+	return aChar + bChar;
+	
+//OLD BITWISE SWAP
+//	if (a.localID == b.localID) {
+//
+//		uchar4 swapChar4 = state[a.localID];
+//		uint * swapPointer = &swapChar4;
+//
+//		uint aChar = swapPointer[0] >> (a.componentID << 3) & 0xFFU;
+//		uint bChar = swapPointer[0] >> (b.componentID << 3) & 0xFFU;
+//
+//		swapPointer[0] = ((aChar << (b.componentID << 3)) | (bChar << (a.componentID << 3))) | (swapPointer[0] & ~((0xFFU << (b.componentID << 3)) | (0xFFU << (a.componentID << 3))));
+//
+//		state[a.localID] = swapChar4;
+//		return aChar + bChar;
+//	}
+//
+//	uchar4 swapAChar4 = state[a.localID];
+//	uchar4 swapBChar4 = state[b.localID];
+//
+//	uint * swapAPointer = &swapAChar4;
+//	uint * swapBPointer = &swapBChar4;
+//
+//	uint aChar = swapAPointer[0] >> (a.componentID << 3) & 0xFFU;
+//	uint bChar = swapBPointer[0] >> (b.componentID << 3) & 0xFFU;
+//
+//	swapAPointer[0] = (swapAPointer[0] & ~(0xFFU << (a.componentID << 3))) | (bChar << (a.componentID << 3));
+//	swapBPointer[0] = (swapBPointer[0] & ~(0xFFU << (b.componentID << 3))) | (aChar << (b.componentID << 3));
+//
+//
+//	state[a.localID] = swapAChar4;
+//	state[b.localID] = swapBChar4;
+//
+//	return aChar + bChar;
+
+
+
+	//		uchar4 swapChar4 = state[a.localID];
+//		uchar * swapChar = &swapChar4;
+//		uchar tmp = swapChar[a.componentID];
+//		swapChar[a.componentID] = swapChar[b.componentID];
+//		swapChar[b.componentID] = tmp;
+//
+//		//printf("(%d, %d, %d, %d) | (%d, %d, %d, %d)\n", state[a.localID].x, state[a.localID].y, state[a.localID].z, state[a.localID].w, swapChar4.x, swapChar4.y, swapChar4.z, swapChar4.w);
+//
+//		state[a.localID] = swapChar4;
+//
+//		return swapChar[a.componentID] + swapChar[b.componentID];
+
+//	uchar4 swapAChar4 = state[a.localID];
+//	uchar4 swapBChar4 = state[b.localID];
+//
+//	uchar * swapAChar = &swapAChar4;
+//	uchar * swapBChar = &swapBChar4;
+//
+//	uchar tmp = swapAChar[a.componentID];
+//	swapAChar[a.componentID] = swapBChar[b.componentID];
+//	swapBChar[b.componentID] = tmp;
+//
+//	//printf("(%d, %d, %d, %d) | (%d, %d, %d, %d) | (%d, %d, %d, %d) | (%d, %d, %d, %d)\n", state[a.localID].x, state[a.localID].y, state[a.localID].z, state[a.localID].w, swapAChar4.x, swapAChar4.y, swapAChar4.z, swapAChar4.w, state[b.localID].x, state[b.localID].y, state[b.localID].z, state[b.localID].w, swapBChar4.x, swapBChar4.y, swapBChar4.z, swapBChar4.w);
+//
+//	state[a.localID] = swapAChar4;
+//	state[b.localID] = swapBChar4;
+//
+//	return swapAChar[a.componentID] + swapBChar[b.componentID];
+}
+__kernel void RC4Local_Rev(uint numberOfWords,
+						   __local uchar4 * restrict state,
+						   __global uchar16 * restrict keys,
+						   __global uint4 * restrict messages,
+						   uchar iteration)
+{
+	unsigned long id = get_global_id(0);
+	if (id >= numberOfWords)
+		return;
+
+	uint localSize = get_local_size(0);
+	uint localId = get_local_id(0);
+
+	for (uint i = 0; i < 64; ++i) {
+		state[i * localSize + localId] = (uchar4)(0, 1, 2, 3) + (uchar)(i * 4);
+	}
+
+	uchar key[16];
+	((uchar16 *)key)[0] = keys[id] ^ iteration;
+
+	uchar message[16];
+	((uint4 *)message)[0] = messages[id];
+
+	uchar k, j, tmp;
+	uchar out[16];
+
+	//KSA: Key-Scheduling Algorithm
+	j = 0;
+	stateID iStateID;
+	for (uint i = 0; i < 256; ++i) {
+		iStateID = indexToStateID(i, localSize, localId);
+		j = j + valueAtStateID(state, iStateID) + key[i & 15]; //i & 15 = i % 16
+
+		//		//Swap
+		//		tmp = state[i];
+		//		state[i] = state[j];
+		//		state[j] = tmp;
+		swapChar(state, iStateID, indexToStateID(j, localSize, localId));
+	}
+
+	//PRGA: Pseudo-Random Generation Algorithm
+	j = 0;
+	k = 0;
+	for (uint i = 0; i < 16; ++i) {
+		iStateID = indexToStateID(i+1, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+
+		//Swap
+		//		tmp = state[k];
+		//		state[k] = state[j];
+		//		state[j] = tmp;
+		tmp = swapChar(state, iStateID, indexToStateID(k, localSize, localId));
+
+		//Index of state to avoid outbound array state
+		//		tmp = state[j] + state[k];
+		//tmpInt = tmp * localSize + localID;
+		out[i] = message[i] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+	}
+
+	messages[id] = ((uint4 *)out)[0];
+
+#if DEBUG_RC4
+	if (id == 1) {
+		uint v;
+		printf("DEBUG RC4:\n");
+		printf("Iteration: %d\n", iteration);
+
+		printf("message[1]: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", message[v]);
+		}
+		printf("\n");
+
+		printf("key[1]: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", key[v]);
+		}
+		printf("\n");
+
+		printf("out: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", out[v]);
+		}
+		printf("\n\n");
+	}
+#endif
+}
+
+
 #if FALSE
 struct indices {
     uint localID,
@@ -770,8 +934,6 @@ __kernel void RC4LocalInline(uint numberOfWords,
 //        tmp = state[kInt];
 //        state[kInt] = state[jInt];
 //        state[jInt] = tmp;
-        
-        
     }
     
     //PRGA: Pseudo-Random Generation Algorithm
