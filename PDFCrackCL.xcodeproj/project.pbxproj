@@ -47,6 +47,7 @@
 		F387860A1C6A3A73009314E0 /* PDFCrackCL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = PDFCrackCL.c; sourceTree = "<group>"; };
 		F387860B1C6A3A73009314E0 /* pdfparser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = pdfparser.c; sourceTree = "<group>"; };
 		F387860C1C6A3A73009314E0 /* pdfparser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pdfparser.h; sourceTree = "<group>"; };
+		F3D5F6161CE089FE00F5F72F /* pdfprotected_weak.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = pdfprotected_weak.pdf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +101,7 @@
 		F38786141C6A3B00009314E0 /* Other */ = {
 			isa = PBXGroup;
 			children = (
+				F3D5F6161CE089FE00F5F72F /* pdfprotected_weak.pdf */,
 				F38786091C6A3A73009314E0 /* Makefile */,
 			);
 			name = Other;
