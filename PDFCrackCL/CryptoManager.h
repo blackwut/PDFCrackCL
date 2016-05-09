@@ -13,8 +13,8 @@
     #define COMMON_DIGEST_FOR_OPENSSL
     #include <CommonCrypto/CommonDigest.h>
 #else
-    #include <CL/cl.h>
-    #include <openssl/md5.h>
+//    #include <CL/cl.h>
+//    #include <openssl/md5.h>
 #endif
 
 void md5(unsigned char * string, unsigned int length, unsigned char digest[16]);

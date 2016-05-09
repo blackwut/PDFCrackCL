@@ -619,6 +619,7 @@ __kernel void RC4Local(uint numberOfWords,
 #endif
 }
 
+#if TRUE
 
 typedef struct stateID {
 	uint localID;
@@ -853,255 +854,151 @@ __kernel void RC4Local_Rev(uint numberOfWords,
 	}
 #endif
 }
+#else
 
+typedef struct stateID {
+	uint localID;
+	uint componentID;
+} stateID;
 
-#if FALSE
-struct indices {
-    uint localID,
-    uint elementID
-};
-
-inline indices indexLocal(uint id) {
-    return { id / 4, id & 4};
+static inline struct stateID indexToStateID(uint index, uint localSize, uint localID)
+{
+	return (stateID){index / 4 * localSize + localID, index & 3}; // id & 3  =  id % 4
 }
 
-inline uint intLocalIndex(indices id, uint localSize, uint localId) {
-    return (id.localID * 4 + id.elementID) * localSize + localID;
+static inline uchar valueAtStateID(__local uint * restrict state, stateID index)
+{
+	return state[index.localID] >> index.componentID & 0xFFU;
 }
 
-inline uchar valueAtIndex(__local uchar4 * state, indices index) {
-    return state[index.localID * 4 + index.elementID];
+static inline uchar swapChar(__local uint * restrict state, stateID a, stateID b)
+{
+	uint aChar, bChar;
+	uint maskAComponent = (a.componentID << 3);
+	uint maskBComponent = (b.componentID << 3);
+
+	if (a.localID == b.localID) {
+		uint swap = state[a.localID];
+
+		aChar = swap >> maskAComponent & 0xFFU;
+		bChar = swap >> maskBComponent & 0xFFU;
+
+		swap = (swap & ~((0xFFU << maskAComponent) | (0xFFU << maskBComponent))) | (bChar << maskAComponent) | (aChar << maskBComponent);
+
+		state[a.localID] = swap;
+
+	} else {
+
+		uint swapA = state[a.localID];
+		uint swapB = state[b.localID];
+
+		aChar = swapA >> maskAComponent & 0xFFU;
+		bChar = swapB >> maskBComponent & 0xFFU;
+
+		swapA = (swapA & ~(0xFFU << maskAComponent)) | (bChar << maskAComponent);
+		swapB = (swapB & ~(0xFFU << maskBComponent)) | (aChar << maskBComponent);
+
+		state[a.localID] = swapA;
+		state[b.localID] = swapB;
+	}
+	return aChar + bChar;
 }
 
-inline uint swapLocal(uint idLeft, uint idRight, __local uchar4 * state) {
-    
-    indices left = indexLocal(idLeft);
-    indices right = indexLocal(idRight);
-    
-    if (left.localID == right.localID) { //in the same uchar4
-      
-    } else {
-        
-    }
-    
-    return idLeft + idRight;
-}
+__kernel void RC4Local_Rev(uint numberOfWords,
+						   __local uint * restrict state,
+						   __global uchar16 * restrict keys,
+						   __global uint4 * restrict messages,
+						   uchar iteration)
+{
+	unsigned long id = get_global_id(0);
+	if (id >= numberOfWords)
+		return;
 
-__kernel void RC4LocalInline(uint numberOfWords,
-                             __global uchar16 * restrict keys,
-                             __global uint4 * restrict messages,
-                             uchar iteration,
-                             __local uchar4 * state) {
-    
-    uint id = get_global_id(0);
-    if (id >= numberOfWords)
-        return;
-    
-    uchar key[16];
-    ((uchar16 *)key)[0] = keys[id] ^ iteration;
-    
-    uchar message[16];
-    ((uint4 *)message)[0] = messages[id];
-    
-    uint localSize = get_local_size(0);
-    uint localId = get_local_id(0);
-    
-#pragma unroll
-    for (uint i = 0; i < 64; ++i) {
-        state[i * localSize + localId] = (uchar4)(0, 0, 0, 0) + (i / (64 / localSize));
-    }
-    
-    //KSA: Key-Scheduling Algorithm
-    uchar tmp = 0;
-    uchar jChar = 0;
-    uchar kChar = 0;
-    uint jInt = 0;
-    uint kInt = 0;
-    
-    //1. Usare uint al posto dei uchar
-    //2. Usare i uchar4/uint al posto dei uchar
-    indices kIndices, jIndices;
-    
-    for (uint i = 0; i < 256; ++i) {
-        kIndices = indexLocal(i);
-        jIndices = jIndices
-//        kInt = i * localSize + localId;
-//        
-//        jChar = jChar + state[kInt] + key[i & 15]; //i & 15 = i % 16
-//        jInt = jChar * localSize + localId;
-//        
-//        //Swap
-//        tmp = state[kInt];
-//        state[kInt] = state[jInt];
-//        state[jInt] = tmp;
-    }
-    
-    //PRGA: Pseudo-Random Generation Algorithm
-    jChar = 0;
-    kChar = 0;
-    jInt = 0;
-    kInt = 0;
-    
-    uchar out[16];
-    for (uint i = 0; i < 16; ++i) {
-        ++jChar;
-        jInt = jChar * localSize + localId;
-        kChar = kChar + state[jInt];
-        kInt = kChar * localSize + localId;
-        
-        //Swap
-        tmp = state[kInt];
-        state[kInt] = state[jInt];
-        state[jInt] = tmp;
-        
-        //Index of state to avoid outbound array state
-        tmp += state[kInt];
-        
-        out[i] = message[i] ^ state[tmp * localSize + localId];
-    }
-    
-    messages[id] = ((uint4 *)out)[0];
-    
+	uint localSize = get_local_size(0);
+	uint localId = get_local_id(0);
+
+	{
+		uint val;
+		for (uint i = 0; i < 64; ++i) {
+			val = i * 4;
+			state[i * localSize + localId] = val | val << 8 | val << 16 | val << 24;
+		}
+	}
+
+	uchar key[16];
+	((uchar16 *)key)[0] = keys[id] ^ iteration;
+
+	uchar message[16];
+	((uint4 *)message)[0] = messages[id];
+
+	uchar k, j, tmp;
+	uchar out[16];
+
+	//KSA: Key-Scheduling Algorithm
+	j = 0;
+	stateID iStateID;
+	for (uint i = 0; i < 64; ++i) {
+		iStateID = indexToStateID(i, localSize, localId);
+		j = j + valueAtStateID(state, iStateID) + key[i & 15]; //i & 15 = i % 16
+
+		//		//Swap
+		//		tmp = state[i];
+		//		state[i] = state[j];
+		//		state[j] = tmp;
+		swapChar(state, iStateID, indexToStateID(j, localSize, localId));
+	}
+
+	//PRGA: Pseudo-Random Generation Algorithm
+	j = 0;
+	k = 0;
+	for (uint i = 0; i < 16; ++i) {
+		iStateID = indexToStateID(i+1, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+
+		//Swap
+		//		tmp = state[k];
+		//		state[k] = state[j];
+		//		state[j] = tmp;
+		tmp = swapChar(state, iStateID, indexToStateID(k, localSize, localId));
+
+		//Index of state to avoid outbound array state
+		//		tmp = state[j] + state[k];
+		//tmpInt = tmp * localSize + localID;
+		out[i] = message[i] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+	}
+
+	messages[id] = ((uint4 *)out)[0];
+
 #if DEBUG_RC4
-    if (id == 1) {
-        
-        uint v;
-        printf("DEBUG RC4:\n");
-        printf("Iteration: %d\n", iteration);
-        
-        printf("message[1]: ");
-        for (v = 0; v < 16; ++v) {
-            printf("%02X", message[v]);
-        }
-        printf("\n");
-        
-        printf("key[1]: ");
-        for (v = 0; v < 16; ++v) {
-            printf("%02X", key[v]);
-        }
-        printf("\n");
-        
-        printf("out: ");
-        for (v = 0; v < 16; ++v) {
-            printf("%02X", out[v]);
-        }
-        printf("\n\n");
-    }
+	if (id == 1) {
+		uint v;
+		printf("DEBUG RC4:\n");
+		printf("Iteration: %d\n", iteration);
+
+		printf("message[1]: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", message[v]);
+		}
+		printf("\n");
+
+		printf("key[1]: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", key[v]);
+		}
+		printf("\n");
+		
+		printf("out: ");
+		for (v = 0; v < 16; ++v) {
+			printf("%02X", out[v]);
+		}
+		printf("\n\n");
+	}
 #endif
 }
 #endif
 
-//__kernel void RC4LocalChar4(uint numberOfWords,
-//                            __global uchar16 * keys,
-//                            __global uint4 * messages,
-//                            uchar iteration,
-//                            __local uchar4 * state) {
-//    
-//    uint id = get_global_id(0);
-//    if (id >= numberOfWords)
-//        return;
-//    
-//    uchar key[16];
-//    ((uchar16 *)key)[0] = keys[id] ^ iteration;
-//    
-//    uchar message[16];
-//    ((uint4 *)message)[0] = messages[id];
-//    
-//    uint localSize = get_local_size(0);
-//    uint localId = get_local_id(0);
-//    
-//    for (uint i = 0; i < 64; ++i) {
-//        state[i * localSize + localId] = (uchar4)(i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3);
-//    }
-//    
-//    //KSA: Key-Scheduling Algorithm
-//    uchar tmp = 0;
-//    uchar jChar = 0;
-//    uchar kChar = 0;
-//    uint jInt = 0;
-//    uint kInt = 0;
-//    
-//    //1. Usare uint al posto dei uchar
-//    //2. Usare uchar4/uint al posto dei uchar
-//    
-//    __local uchar4 * val;
-//    
-//    for (uint i = 0; i < 64; ++i) {
-//        //kInt = i * localSize + localId;
-//        
-//        val = &state[i * localSize + localId];
-//        
-//        for (uint f = 0; f < 4; ++f) {
-//            jChar = jChar + val[0][f] + key[(i + f) & 15];
-//            jInt = jChar / 4 * localSize + localId;
-//            
-//            tmp = val[0][f];
-//            val[0][f] = state[jInt][f];
-//            state[jInt][f] = tmp;
-//        }
-//
-////        jChar = jChar + state[kInt] + key[i & 15]; //i & 15 = i % 16
-////        jInt = jChar * localSize + localId;
-////        
-////        //Swap
-////        tmp = state[kInt];
-////        state[kInt] = state[jInt];
-////        state[jInt] = tmp;
-//    }
-//    
-//    //PRGA: Pseudo-Random Generation Algorithm
-////    jChar = 0;
-////    kChar = 0;
-////    jInt = 0;
-////    kInt = 0;
-////    
-//    uchar out[16];
-////    for (uint i = 0; i < 16; ++i) {
-////        ++jChar;
-////        jInt = jChar * localSize + localId;
-////        kChar = kChar + state[jInt];
-////        kInt = kChar * localSize + localId;
-////        
-////        //Swap
-////        tmp = state[kInt];
-////        state[kInt] = state[jInt];
-////        state[jInt] = tmp;
-////        
-////        //Index of state to avoid outbound array state
-////        tmp += state[kInt];
-////        
-////        out[i] = message[i] ^ state[tmp * localSize + localId];
-////    }
-////    
-////    messages[id] = ((uint4 *)out)[0];
-//    
-//#if DEBUG_RC4
-//    if (id == 1) {
-//        
-//        uint v;
-//        printf("DEBUG RC4:\n");
-//        printf("Iteration: %d\n", iteration);
-//        
-//        printf("message[1]: ");
-//        for (v = 0; v < 16; ++v) {
-//            printf("%02X", message[v]);
-//        }
-//        printf("\n");
-//        
-//        printf("key[1]: ");
-//        for (v = 0; v < 16; ++v) {
-//            printf("%02X", key[v]);
-//        }
-//        printf("\n");
-//        
-//        printf("out: ");
-//        for (v = 0; v < 16; ++v) {
-//            printf("%02X", out[v]);
-//        }
-//        printf("\n\n");
-//    }
-//#endif
-//}
+
+
 
 __kernel void checkPassword(unsigned int numberOfWords,
                             __global uint4 * restrict hashes,
