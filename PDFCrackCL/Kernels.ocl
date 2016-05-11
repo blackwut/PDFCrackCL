@@ -953,7 +953,7 @@ __kernel void RC4Local_Rev(uint numberOfWords,
 	k = 0;
 	for (uint i = 0; i < 16; ++i) {
 		iStateID = indexToStateID(i+1, localSize, localId);
-		k = (k + valueAtStateID(state, iStateID));
+		k = k + valueAtStateID(state, iStateID);
 
 		//Swap
 		//		tmp = state[k];

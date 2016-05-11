@@ -402,12 +402,24 @@ int main(int argc, char ** argv)
     CLReleaseMemObject(wordsHalfTwo_d, "wordsHalfTwo_d");
     
     //RC4
-    char iteration = 19;    
-    CLMem messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
-    cl_int error;
-    error = clEnqueueFillBuffer(queue, messages_d, data->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50[49], &eventFillBufferRC4);
-    CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
-    
+	CLMem messages_d;
+#if CL_VERSION_1_1
+
+	unsigned char * filledBuffer = malloc(hashesDataSize);
+	for (int i = 0; i < hashesDataSize; ++i) {
+		filledBuffer[i] = data->u_string[i % 16];
+	}
+	messages_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, hashesDataSize, filledBuffer, "messages_d");
+
+#else
+	messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
+	cl_int error;
+	error = clEnqueueFillBuffer(queue, messages_d, data->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50[49], &eventFillBufferRC4);
+	CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
+#endif
+
+
+    char iteration = 19;
     
 	lws = CLGetPreferredWorkGroupSizeMultiple(kernelRC4, device, "kernelRC4");
     CLSetKernelArg(kernelRC4, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
