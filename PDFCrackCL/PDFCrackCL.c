@@ -114,7 +114,7 @@ static struct option long_options[] =
     {0, 0, 0, 0}
 };
 
-unsigned int numberOfWordsToGenerate(unsigned int numberOfCharacters, unsigned int charsetLenght)
+unsigned int numberOfWordsToGenerate(unsigned int numberOfCharacters, size_t charsetLenght)
 {
     unsigned int number = 0;
     unsigned int pow = 1;
@@ -126,67 +126,36 @@ unsigned int numberOfWordsToGenerate(unsigned int numberOfCharacters, unsigned i
 }
 
 CLEvent runInitWords(CLContext context, CLQueue queue, CLProgram program, CLDevice device,
-				  EncData * pdf,
-				  unsigned char * offsetString, unsigned char * charset, unsigned int numberOfWords,
-				  CLMem * wordsHalfOne, CLMem * wordsHalfTwo, CLMem * hashes)
+					 size_t gws, size_t lws,
+					 unsigned int numberOfWords, unsigned char * offsetString, unsigned char * charset, unsigned char * otherPad,
+					 unsigned int offsetStringSize, unsigned int offsetStringLength, unsigned int charsetLength, unsigned int otherPadLength,
+					 CLMem wordsHalfOne, CLMem wordsHalfTwo, CLMem hashes)
 {
-	//Offset
-	unsigned int offsetLength = sizeof(offsetString) - 1;
-
-	//Charset
-	unsigned int charsetLength = sizeof(charset) - 1;
-
-	//Other Pad
-	unsigned char otherPad[52];
-	memcpy(otherPad, pdf->o_string, pdf->o_length);
-	otherPad[32] = pdf->permissions & 0xff;
-	otherPad[33] = (pdf->permissions >> 8) & 0xff;
-	otherPad[34] = (pdf->permissions >> 16) & 0xff;
-	otherPad[35] = (pdf->permissions >> 24) & 0xff;
-	memcpy(otherPad + 36, pdf->fileID, pdf->fileIDLen);
-
-	//Data Size
-	size_t wordsHalfDataSize = sizeof(unsigned int) * 16 * numberOfWords;
-	size_t hashesDataSize = sizeof(unsigned int) * 4 * numberOfWords;
-
 	//OpenCL
 	CLKernel kernelInitWords = CLCreateKernel(program, "initWordsWithOffset");
 	CLEvent eventInitWords;
 
 	//CLMem
-	CLMem offsetString_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(offsetString), offsetString, "offsetString_d");
-	CLMem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
-	CLMem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(otherPad), otherPad, "otherPad_d");
-	CLMem wordsHalfOne_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfOne_d");
-	CLMem wordsHalfTwo_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfTwo_d");
-	CLMem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "hashes_d");
-
-	*wordsHalfOne = wordsHalfOne_d;
-	*wordsHalfTwo = wordsHalfTwo_d;
-	*hashes = hashes_d;
+	CLMem offsetString_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, offsetStringSize, offsetString, "offsetString_d");
+	CLMem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, charsetLength, charset, "charset_d");
+	CLMem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, otherPadLength, otherPad, "otherPad_d");
 
 	//Kernel Args
 	CLSetKernelArg(kernelInitWords, 0, sizeof(offsetString_d), &offsetString_d, "offsetString");
-	CLSetKernelArg(kernelInitWords, 1, sizeof(offsetLength), &offsetLength, "offsetLength");
+	CLSetKernelArg(kernelInitWords, 1, sizeof(offsetStringLength), &offsetStringLength, "offsetLength");
 	CLSetKernelArg(kernelInitWords, 2, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-	CLSetKernelArg(kernelInitWords, 3, sizeof(charset_d), &charset_d, "charset_d");
+	CLSetKernelArg(kernelInitWords, 3, sizeof(charset_d), &charset_d, "charset");
 	CLSetKernelArg(kernelInitWords, 4, sizeof(charsetLength), &charsetLength, "charsetLength");
-	CLSetKernelArg(kernelInitWords, 5, sizeof(otherPad_d), &otherPad_d, "otherPad_d");
-	CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
-	CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-	CLSetKernelArg(kernelInitWords, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
-
-	size_t lws = CLGetPreferredWorkGroupSizeMultiple(kernelInitWords, device, "kernelInitWords");
-	size_t gws = CLGetOptimalGlobalWorkItemsSize(numberOfWords, lws);
+	CLSetKernelArg(kernelInitWords, 5, sizeof(otherPad_d), &otherPad_d, "otherPad");
+	CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne), &wordsHalfOne, "wordsHalfOne");
+	CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo), &wordsHalfTwo, "wordsHalfTwo");
+	CLSetKernelArg(kernelInitWords, 8, sizeof(hashes), &hashes, "hashes");
 
 	CLEnqueueNDRangeKernel(queue, kernelInitWords, NULL, &gws, &lws, 0, NULL, &eventInitWords, "kernelInitWords");
 
 	CLReleaseMemObject(offsetString_d, "offsetString_d");
 	CLReleaseMemObject(charset_d, "charset_d");
 	CLReleaseMemObject(otherPad_d, "otherPad_d");
-
-	size_t totalReadWrite = sizeof(offsetString)-1 + sizeof(offsetLength) + sizeof(numberOfWords) + sizeof(charset)-1 + sizeof(charsetLength) + sizeof(otherPad) + wordsHalfDataSize * 2 + hashesDataSize;
-	printStatsKernel(eventInitWords, numberOfWords, totalReadWrite, "initWordsWithOffset");
 
 	return eventInitWords;
 }
@@ -302,11 +271,9 @@ int main(int argc, char ** argv)
 	CLEvent eventMD5First;
 	CLEvent eventMD5Second;
 	CLEvent eventMD5_50[50];
-	CLEvent eventFillBufferRC4;
 	CLEvent eventRC4[20];
 	CLEvent eventCheckPassword;
 
-	CLKernel kernelInitWords = CLCreateKernel(program, "initWordsWithOffset");
 	CLKernel kernelMD5 = CLCreateKernel(program, "MD5");
 	CLKernel kernelMD5_50 = CLCreateKernel(program, "MD5_50");
 	CLKernel kernelRC4 = CLCreateKernel(program, "RC4Local_Rev");
@@ -314,8 +281,9 @@ int main(int argc, char ** argv)
 
 
 	//OffsetString
-	unsigned char offsetString[] = "";
-	unsigned int offsetLength = sizeof(offsetString) - 1;
+	unsigned char offsetString[] = "\0";
+	unsigned int offsetStringSize = sizeof(offsetStringSize);
+	unsigned int offsetStringLength = offsetString[0] == '\0' ? 0: sizeof(offsetString) - 1;
 
 	//Charset
 	unsigned char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -337,36 +305,20 @@ int main(int argc, char ** argv)
 	otherPad[34] = (data->permissions >> 16) & 0xff;
 	otherPad[35] = (data->permissions >> 24) & 0xff;
 	memcpy(otherPad + 36, data->fileID, data->fileIDLen);
+	unsigned int otherPadLength = 52;
 
-
-	CLMem offsetString_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(offsetString), offsetString, "offsetString_d");
-	CLMem charset_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(charset), charset, "charset_d");
-	CLMem otherPad_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, sizeof(otherPad), otherPad, "otherPad_d");
 	CLMem wordsHalfOne_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfOne_d");
 	CLMem wordsHalfTwo_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, wordsHalfDataSize, "wordsHalfTwo_d");
 	CLMem hashes_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "hashes_d");
 
-
-	//Kernel Args
-	CLSetKernelArg(kernelInitWords, 0, sizeof(offsetString_d), &offsetString_d, "offsetString");
-	CLSetKernelArg(kernelInitWords, 1, sizeof(offsetLength), &offsetLength, "offsetLength");
-	CLSetKernelArg(kernelInitWords, 2, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
-	CLSetKernelArg(kernelInitWords, 3, sizeof(charset_d), &charset_d, "charset_d");
-	CLSetKernelArg(kernelInitWords, 4, sizeof(charsetLength), &charsetLength, "charsetLength");
-	CLSetKernelArg(kernelInitWords, 5, sizeof(otherPad_d), &otherPad_d, "otherPad_d");
-	CLSetKernelArg(kernelInitWords, 6, sizeof(wordsHalfOne_d), &wordsHalfOne_d, "wordsHalfOne_d");
-	CLSetKernelArg(kernelInitWords, 7, sizeof(wordsHalfTwo_d), &wordsHalfTwo_d, "wordsHalfTwo_d");
-	CLSetKernelArg(kernelInitWords, 8, sizeof(hashes_d), &hashes_d, "hashes_d");
-
-	size_t lws = CLGetPreferredWorkGroupSizeMultiple(kernelInitWords, device, "kernelInitWords");
+	size_t lws = 32;
 	size_t gws = CLGetOptimalGlobalWorkItemsSize(numberOfWords, lws);
 
-	CLEnqueueNDRangeKernel(queue, kernelInitWords, NULL, &gws, &lws, 0, NULL, &eventInitWords, "kernelInitWords");
-
-	CLReleaseMemObject(offsetString_d, "offsetString_d");
-	CLReleaseMemObject(charset_d, "charset_d");
-	CLReleaseMemObject(otherPad_d, "otherPad_d");
-
+	eventInitWords = runInitWords(context, queue, program, device,
+								  gws, lws,
+								  numberOfWords, offsetString, charset, otherPad,
+								  offsetStringSize, offsetStringLength, charsetLength, otherPadLength,
+								  wordsHalfOne_d, wordsHalfTwo_d, hashes_d);
 
     //MD5 First
     CLSetKernelArg(kernelMD5, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
@@ -378,7 +330,7 @@ int main(int argc, char ** argv)
 	gws = CLGetOptimalGlobalWorkItemsSize(numberOfWords, lws);
 
     CLEnqueueNDRangeKernel(queue, kernelMD5, NULL, &gws, &lws, 1, &eventInitWords, &eventMD5First, "kernelMD5_First");
-    
+
 
     //MD5 Second
     //CLSetKernelArg(kernelMD5, 0, sizeof(numberOfWords), &numberOfWords, "numberOfWords");
@@ -403,7 +355,7 @@ int main(int argc, char ** argv)
     
     //RC4
 	CLMem messages_d;
-#if CL_VERSION_1_1
+//#if CL_VERSION_1_1
 
 	unsigned char * filledBuffer = malloc(hashesDataSize);
 	for (int i = 0; i < hashesDataSize; ++i) {
@@ -411,12 +363,12 @@ int main(int argc, char ** argv)
 	}
 	messages_d = CLCreateBufferHostVar(context, CL_MEM_READ_ONLY, hashesDataSize, filledBuffer, "messages_d");
 
-#else
-	messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
-	cl_int error;
-	error = clEnqueueFillBuffer(queue, messages_d, data->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50[49], &eventFillBufferRC4);
-	CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
-#endif
+//#else
+//	messages_d = CLCreateBuffer(context, CL_MEM_READ_WRITE, hashesDataSize, "messages_d");
+//	cl_int error;
+//	error = clEnqueueFillBuffer(queue, messages_d, data->u_string, 16, 0, hashesDataSize, 1, &eventMD5_50[49], &eventFillBufferRC4);
+//	CLErrorCheck(error, "clEnqueueFillBuffer", "messages_d", CHECK_NOT_EXIT);
+//#endif
 
 
     char iteration = 19;
@@ -428,11 +380,12 @@ int main(int argc, char ** argv)
     CLSetKernelArg(kernelRC4, 3, sizeof(messages_d), &messages_d, "messages_d");
     CLSetKernelArg(kernelRC4, 4, sizeof(iteration), &iteration, "iteration");
 
-    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventFillBufferRC4, &eventRC4[19], "kernelRC4");
-
+    CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventMD5_50[49], &eventRC4[19], "kernelRC4");
+	CLFinish(queue);
     for (int i = 18; i >= 0; --i) {
         CLSetKernelArg(kernelRC4, 4, sizeof(i), &i, "iteration");
         CLEnqueueNDRangeKernel(queue, kernelRC4, NULL, &gws, &lws, 1, &eventRC4[i+1], &eventRC4[i], "kernelRC4");
+		CLFinish(queue);
     }
     
 	unsigned char digest[16];
@@ -487,8 +440,6 @@ int main(int argc, char ** argv)
         CLReleaseEvent(eventMD5_50[i]);
     }
     
-    CLReleaseEvent(eventFillBufferRC4);
-
     for (int i = 0; i < 20; ++i) {
         CLReleaseEvent(eventRC4[i]);
     }

@@ -5,7 +5,7 @@
 #define DEBUG_initWords FALSE
 #define DEBUG_MD5 FALSE
 #define DEBUG_MD5_50 FALSE
-#define DEBUG_RC4 TRUE
+#define DEBUG_RC4 FALSE
 
 
 /* Macros for reading/writing chars from int32's (from rar_kernel.cl) */
@@ -521,11 +521,11 @@ __kernel void RC4Cpu(uint numberOfWords,
 
 
 __kernel void RC4Local(uint numberOfWords,
-                  __global uchar16 * restrict keys,
-                  __global uint4 * restrict messages,
-                  uchar iteration,
-                  __local uchar * restrict state) {
-    
+					   __local uchar * restrict state,
+					   __global uchar16 * restrict keys,
+					   __global uint4 * restrict messages,
+					   uchar iteration)
+{
     uint id = get_global_id(0);
     if (id >= numberOfWords)
         return;
@@ -619,7 +619,7 @@ __kernel void RC4Local(uint numberOfWords,
 #endif
 }
 
-#if TRUE
+#if FALSE
 
 typedef struct stateID {
 	uint localID;
@@ -856,53 +856,43 @@ __kernel void RC4Local_Rev(uint numberOfWords,
 }
 #else
 
-typedef struct stateID {
-	uint localID;
-	uint componentID;
-} stateID;
 
-static inline struct stateID indexToStateID(uint index, uint localSize, uint localID)
+static inline uint2 indexToStateID(uint index, uint localSize, uint localID)
 {
-	return (stateID){index / 4 * localSize + localID, index & 3}; // id & 3  =  id % 4
+	return (uint2)(index / 4 * localSize + localID, index & 3); // id & 3  =  id % 4
 }
 
-static inline uchar valueAtStateID(__local uint * restrict state, stateID index)
+static inline uchar valueAtStateID(__local uint * restrict state, uint2 index)
 {
-	return state[index.localID] >> index.componentID & 0xFFU;
+	return state[index.x] >> (index.y << 3);//& 0XFFU;
 }
 
-static inline uchar swapChar(__local uint * restrict state, stateID a, stateID b)
+static inline uchar swapCharReturn(__local uint * restrict state, uint2 a, uint2 b)
 {
-	uint aChar, bChar;
-	uint maskAComponent = (a.componentID << 3);
-	uint maskBComponent = (b.componentID << 3);
 
-	if (a.localID == b.localID) {
-		uint swap = state[a.localID];
+	uint swapA = state[a.x];
+	uint swapB = state[b.x];
+	uint maskAComponent = (a.y << 3);
+	uint maskBComponent = (b.y << 3);
+	uint aChar = swapA >> maskAComponent & 0xFFU;
+	uint bChar = swapB >> maskBComponent & 0xFFU;
 
-		aChar = swap >> maskAComponent & 0xFFU;
-		bChar = swap >> maskBComponent & 0xFFU;
+	swapA = (swapA & ~(0xFFU << maskAComponent)) | (bChar << maskAComponent);
 
-		swap = (swap & ~((0xFFU << maskAComponent) | (0xFFU << maskBComponent))) | (bChar << maskAComponent) | (aChar << maskBComponent);
-
-		state[a.localID] = swap;
+	if (a.x == b.x) {
+		swapA = (swapA & ~(0xFFU << maskBComponent)) | (aChar << maskBComponent);
 
 	} else {
-
-		uint swapA = state[a.localID];
-		uint swapB = state[b.localID];
-
-		aChar = swapA >> maskAComponent & 0xFFU;
-		bChar = swapB >> maskBComponent & 0xFFU;
-
-		swapA = (swapA & ~(0xFFU << maskAComponent)) | (bChar << maskAComponent);
 		swapB = (swapB & ~(0xFFU << maskBComponent)) | (aChar << maskBComponent);
-
-		state[a.localID] = swapA;
-		state[b.localID] = swapB;
+		state[b.x] = swapB;
 	}
+
+	state[a.x] = swapA;
+
 	return aChar + bChar;
 }
+
+#define NOT_UNROLL FALSE
 
 __kernel void RC4Local_Rev(uint numberOfWords,
 						   __local uint * restrict state,
@@ -918,80 +908,300 @@ __kernel void RC4Local_Rev(uint numberOfWords,
 	uint localId = get_local_id(0);
 
 	{
-		uint val;
+#if NOT_UNROLL
+		uchar val;
 		for (uint i = 0; i < 64; ++i) {
 			val = i * 4;
-			state[i * localSize + localId] = val | val << 8 | val << 16 | val << 24;
+			state[i * localSize + localId] = (val) | (val + 1) << 8 | (val + 2) << 16 | (val + 3) << 24;
 		}
+#else
+		//Gain 300 ms on 20 iterations
+		state[0 * localSize + localId] = 0x03020100;
+		state[1 * localSize + localId] = 0x07060504;
+		state[2 * localSize + localId] = 0x0b0a0908;
+		state[3 * localSize + localId] = 0x0f0e0d0c;
+		state[4 * localSize + localId] = 0x13121110;
+		state[5 * localSize + localId] = 0x17161514;
+		state[6 * localSize + localId] = 0x1b1a1918;
+		state[7 * localSize + localId] = 0x1f1e1d1c;
+		state[8 * localSize + localId] = 0x23222120;
+		state[9 * localSize + localId] = 0x27262524;
+		state[10 * localSize + localId] = 0x2b2a2928;
+		state[11 * localSize + localId] = 0x2f2e2d2c;
+		state[12 * localSize + localId] = 0x33323130;
+		state[13 * localSize + localId] = 0x37363534;
+		state[14 * localSize + localId] = 0x3b3a3938;
+		state[15 * localSize + localId] = 0x3f3e3d3c;
+		state[16 * localSize + localId] = 0x43424140;
+		state[17 * localSize + localId] = 0x47464544;
+		state[18 * localSize + localId] = 0x4b4a4948;
+		state[19 * localSize + localId] = 0x4f4e4d4c;
+		state[20 * localSize + localId] = 0x53525150;
+		state[21 * localSize + localId] = 0x57565554;
+		state[22 * localSize + localId] = 0x5b5a5958;
+		state[23 * localSize + localId] = 0x5f5e5d5c;
+		state[24 * localSize + localId] = 0x63626160;
+		state[25 * localSize + localId] = 0x67666564;
+		state[26 * localSize + localId] = 0x6b6a6968;
+		state[27 * localSize + localId] = 0x6f6e6d6c;
+		state[28 * localSize + localId] = 0x73727170;
+		state[29 * localSize + localId] = 0x77767574;
+		state[30 * localSize + localId] = 0x7b7a7978;
+		state[31 * localSize + localId] = 0x7f7e7d7c;
+		state[32 * localSize + localId] = 0x83828180;
+		state[33 * localSize + localId] = 0x87868584;
+		state[34 * localSize + localId] = 0x8b8a8988;
+		state[35 * localSize + localId] = 0x8f8e8d8c;
+		state[36 * localSize + localId] = 0x93929190;
+		state[37 * localSize + localId] = 0x97969594;
+		state[38 * localSize + localId] = 0x9b9a9998;
+		state[39 * localSize + localId] = 0x9f9e9d9c;
+		state[40 * localSize + localId] = 0xa3a2a1a0;
+		state[41 * localSize + localId] = 0xa7a6a5a4;
+		state[42 * localSize + localId] = 0xabaaa9a8;
+		state[43 * localSize + localId] = 0xafaeadac;
+		state[44 * localSize + localId] = 0xb3b2b1b0;
+		state[45 * localSize + localId] = 0xb7b6b5b4;
+		state[46 * localSize + localId] = 0xbbbab9b8;
+		state[47 * localSize + localId] = 0xbfbebdbc;
+		state[48 * localSize + localId] = 0xc3c2c1c0;
+		state[49 * localSize + localId] = 0xc7c6c5c4;
+		state[50 * localSize + localId] = 0xcbcac9c8;
+		state[51 * localSize + localId] = 0xcfcecdcc;
+		state[52 * localSize + localId] = 0xd3d2d1d0;
+		state[53 * localSize + localId] = 0xd7d6d5d4;
+		state[54 * localSize + localId] = 0xdbdad9d8;
+		state[55 * localSize + localId] = 0xdfdedddc;
+		state[56 * localSize + localId] = 0xe3e2e1e0;
+		state[57 * localSize + localId] = 0xe7e6e5e4;
+		state[58 * localSize + localId] = 0xebeae9e8;
+		state[59 * localSize + localId] = 0xefeeedec;
+		state[60 * localSize + localId] = 0xf3f2f1f0;
+		state[61 * localSize + localId] = 0xf7f6f5f4;
+		state[62 * localSize + localId] = 0xfbfaf9f8;
+		state[63 * localSize + localId] = 0xfffefdfc;
+#endif
 	}
 
-	uchar key[16];
-	((uchar16 *)key)[0] = keys[id] ^ iteration;
-
-	uchar message[16];
-	((uint4 *)message)[0] = messages[id];
-
-	uchar k, j, tmp;
-	uchar out[16];
-
 	//KSA: Key-Scheduling Algorithm
-	j = 0;
-	stateID iStateID;
-	for (uint i = 0; i < 64; ++i) {
-		iStateID = indexToStateID(i, localSize, localId);
-		j = j + valueAtStateID(state, iStateID) + key[i & 15]; //i & 15 = i % 16
+	uint2 iStateID;
 
-		//		//Swap
-		//		tmp = state[i];
-		//		state[i] = state[j];
-		//		state[j] = tmp;
-		swapChar(state, iStateID, indexToStateID(j, localSize, localId));
+	{
+		uchar key[16];
+		uchar j = 0;
+		((uchar16 *)key)[0] = keys[id] ^ iteration;
+
+		for (uint i = 0; i < 256; ++i) {
+#if NOT_UNROLL
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[i & 15];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+#else
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[0];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[1];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[2];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[3];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[4];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[5];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[6];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[7];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[8];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[9];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[10];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[11];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[12];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[13];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[14];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+			++i;
+
+			iStateID = indexToStateID(i, localSize, localId);
+			j = j + valueAtStateID(state, iStateID) + key[15];
+			swapCharReturn(state, iStateID, indexToStateID(j, localSize, localId));
+#endif
+		}
 	}
 
 	//PRGA: Pseudo-Random Generation Algorithm
-	j = 0;
-	k = 0;
-	for (uint i = 0; i < 16; ++i) {
-		iStateID = indexToStateID(i+1, localSize, localId);
-		k = k + valueAtStateID(state, iStateID);
+	{
+		uchar out[16];
+		uchar message[16];
+		((uint4 *)message)[0] = messages[id];
+		uchar k = 0;
+		uchar tmp;
 
-		//Swap
-		//		tmp = state[k];
-		//		state[k] = state[j];
-		//		state[j] = tmp;
-		tmp = swapChar(state, iStateID, indexToStateID(k, localSize, localId));
+//#pragma unroll
+#if NOT_UNROLL
+		for (uint i = 0; i < 16; ++i) {
+			iStateID = indexToStateID(i+1, localSize, localId);
+			k = (k + valueAtStateID(state, iStateID));
+			tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+			out[i] = message[i] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+		}
+#else
+		iStateID = indexToStateID(1, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[0] = message[0] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
 
-		//Index of state to avoid outbound array state
-		//		tmp = state[j] + state[k];
-		//tmpInt = tmp * localSize + localID;
-		out[i] = message[i] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+		iStateID = indexToStateID(2, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[1] = message[1] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(3, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[2] = message[2] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(4, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[3] = message[3] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(5, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[4] = message[4] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(6, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[5] = message[5] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(7, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[6] = message[6] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(8, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[7] = message[7] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(9, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[8] = message[8] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(10, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[9] = message[9] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(11, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[10] = message[10] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(12, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[11] = message[11] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(13, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[12] = message[12] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(14, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[13] = message[13] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(15, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[14] = message[14] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+
+		iStateID = indexToStateID(16, localSize, localId);
+		k = (k + valueAtStateID(state, iStateID));
+		tmp = swapCharReturn(state, iStateID, indexToStateID(k, localSize, localId));
+		out[15] = message[15] ^ valueAtStateID(state, indexToStateID(tmp, localSize, localId));
+#endif
+		messages[id] = ((uint4 *)out)[0];
 	}
-
-	messages[id] = ((uint4 *)out)[0];
-
 #if DEBUG_RC4
 	if (id == 1) {
-		uint v;
+
 		printf("DEBUG RC4:\n");
 		printf("Iteration: %d\n", iteration);
 
-		printf("message[1]: ");
-		for (v = 0; v < 16; ++v) {
-			printf("%02X", message[v]);
-		}
-		printf("\n");
-
-		printf("key[1]: ");
-		for (v = 0; v < 16; ++v) {
-			printf("%02X", key[v]);
-		}
-		printf("\n");
-		
-		printf("out: ");
-		for (v = 0; v < 16; ++v) {
-			printf("%02X", out[v]);
-		}
-		printf("\n\n");
+//		uint v;
+//		printf("message[1]: ");
+//		for (v = 0; v < 16; ++v) {
+//			printf("%02X", message[v]);
+//		}
+//		printf("\n");
+//
+//		printf("key[1]: ");
+//		for (v = 0; v < 16; ++v) {
+//			printf("%02X", key[v]);
+//		}
+//		printf("\n");
+//		
+//		printf("out: ");
+//		for (v = 0; v < 16; ++v) {
+//			printf("%02X", out[v]);
+//		}
+//		printf("\n\n");
 	}
 #endif
 }
