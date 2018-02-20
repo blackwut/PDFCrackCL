@@ -254,7 +254,7 @@ int main(int argc, const char * argv[]) {
 //    unsigned int num = 1024 * 64;
 //    char key[3] = "key";
 //    size_t keyLen = (size_t)3;
-//    char * msg = "porcodioporcodioporcodioporcodio";
+//    char * msg = "message";
 //    unsigned int * msgLen = malloc(num * sizeof(unsigned int));
 //    for (int i = 0; i < num; ++i) {
 //        msgLen[i] = 32;
